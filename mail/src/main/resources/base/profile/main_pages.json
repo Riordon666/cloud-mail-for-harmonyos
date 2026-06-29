@@ -1,17 +1,5 @@
-﻿{
+{
   "src": [
-    "pages/Index",
-    "pages/login/LoginPage",
-    "pages/inbox/InboxPage",
-    "pages/message/MessagePage",
-    "pages/compose/ComposePage",
-    "pages/starred/StarredPage",
-    "pages/accounts/AccountsPage",
-    "pages/settings/MePage",
-    "pages/admin/users/AdminUsersPage",
-    "pages/admin/allmail/AdminAllMailPage",
-    "pages/admin/roles/AdminRolesPage",
-    "pages/admin/analysis/AdminAnalysisPage",
-    "pages/admin/regkeys/AdminRegKeyPage"
+    "pages/Index"
   ]
 }
