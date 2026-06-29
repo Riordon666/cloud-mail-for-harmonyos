@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "MailAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "MailAbility_label",
+      "value": "label"
+    }
+  ]
+}
