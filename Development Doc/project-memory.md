@@ -1,7 +1,7 @@
 # Project Memory
 
 > **给新 Agent / 新开发者的第一份文档。每次开发完成后更新。**
-> 最后更新：2026-06-30（Step 01 完成后）
+> 最后更新：2026-06-30 16:32:00（Step 01 完成后）
 
 ---
 
@@ -101,6 +101,7 @@ mail/src/main/ets/
 
 ## 七、Git 规范
 
+- ⚠️ **禁止擅自 push**：必须等用户明确说"push"或"推送"后才能执行 `git push`。commit 可以随时做。
 - **提交格式**：`step(XX): 简述\n\n- 完成项1\n- 完成项2`
 - **分支**：直接推 main（暂无 PR 流程）
 - **远程**：`https://github.com/Riordon666/cloud-mail-for-harmonyos`
