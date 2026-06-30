@@ -6,15 +6,14 @@
 
 ```
 Development Doc/
-├── agent-rules.md        ← 本文件（Agent 开发规则）
+├── project-memory.md      ← 🔑 所有 Agent 必读第一份文档
+├── agent-rules.md         ← 本文件（Agent 开发规则）
 ├── 00-总开发计划.md        ← 总览 + 依赖关系
 ├── plans/                ← 开发计划文档
 │   ├── 01-项目结构重构.md
-│   ├── 02-完善设计系统.md
 │   └── ...
 ├── finished/             ← 已完成步骤总结
-│   ├── F01-项目结构重构.md
-│   └── ...
+│   └── F01-xxx.md
 └── 开发者文档/            ← 技术参考
 ```
 
@@ -29,28 +28,30 @@ Development Doc/
 ## 开发工作流
 
 ```
-用户给出下一步指令
+Agent 启动
     ↓
-Agent 阅读 plans/XX-xxx.md 计划文档
+① 先读 project-memory.md（了解项目全貌 + 当前状态）
     ↓
-Agent 按计划逐步实施开发
+② 读 plans/XX-xxx.md 计划文档
     ↓
-完成后，Agent 编写 finished/FXX-xxx.md 总结文档
+③ 按计划逐步实施开发
     ↓
-Agent 告知用户本步骤完成的内容
+④ 写 finished/FXX-xxx.md 完成总结
     ↓
-用户审核 → 确认后进入下一步
+⑤ 更新 project-memory.md（进度 + 下一步 + 设计决策）
+    ↓
+⑥ git commit & push
+    ↓
+⑦ 告知用户完成内容
 ```
 
 ## 每次开发的强制要求
 
-1. **开始前**：阅读 `plans/XX-步骤名.md` 计划文档
+1. **开始前**：必读 `project-memory.md`，然后读 `plans/XX-步骤名.md`
 2. **开发中**：严格按照计划文档的任务清单执行
-3. **完成后**：编写 `finished/FXX-步骤名.md`，包含：
-   - 本步骤完成了什么
-   - 新建/修改了哪些文件
-   - 遇到的问题和解决方案
-   - 下一步建议
+3. **完成后**：
+   - 编写 `finished/FXX-步骤名.md`
+   - **更新 `project-memory.md`**（进度表格 + 最后更新日期 + 下一步行动 + 新设计决策）
 4. **提交代码**：每个步骤完成后做一次 git commit
 
 ## 代码规范
