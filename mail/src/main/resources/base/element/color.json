@@ -1,52 +1,22 @@
-{
+﻿{
   "color": [
-    {
-      "name": "background",
-      "value": "#F1F3F5"
-    },
-    {
-      "name": "card",
-      "value": "#FFFFFF"
-    },
-    {
-      "name": "primary",
-      "value": "#317AF7"
-    },
-    {
-      "name": "primary_light",
-      "value": "#5B9AF9"
-    },
-    {
-      "name": "text_primary",
-      "value": "#1A1A1A"
-    },
-    {
-      "name": "text_secondary",
-      "value": "#8E8E93"
-    },
-    {
-      "name": "text_tertiary",
-      "value": "#C7C7CC"
-    },
-    {
-      "name": "divider",
-      "value": "#E5E5EA"
-    },
-    {
-      "name": "star",
-      "value": "#FFD93D"
-    },
-    {
-      "name": "danger",
-      "value": "#FF4757"
-    },
-    {
-      "name": "success",
-      "value": "#6BCB77"
-    },
-    {
-      "name": "start_window_background",
-      "value": "#F1F3F5"
-    }
+    { "name": "background", "value": "#F1F3F5" },
+    { "name": "card", "value": "#FFFFFF" },
+    { "name": "primary", "value": "#317AF7" },
+    { "name": "primary_light", "value": "#5B9AF9" },
+    { "name": "primary_dark", "value": "#1A56DB" },
+    { "name": "warning", "value": "#FF9500" },
+    { "name": "info", "value": "#5AC8FA" },
+    { "name": "success", "value": "#6BCB77" },
+    { "name": "danger", "value": "#FF4757" },
+    { "name": "star", "value": "#FFD93D" },
+    { "name": "text_primary", "value": "#1A1A1A" },
+    { "name": "text_secondary", "value": "#8E8E93" },
+    { "name": "text_tertiary", "value": "#C7C7CC" },
+    { "name": "text_link", "value": "#317AF7" },
+    { "name": "divider", "value": "#E5E5EA" },
+    { "name": "overlay", "value": "#66000000" },
+    { "name": "skeleton", "value": "#E8E8E8" },
+    { "name": "start_window_background", "value": "#F1F3F5" }
   ]
 }

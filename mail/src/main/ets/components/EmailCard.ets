@@ -1,4 +1,4 @@
-import Constants from '../common/Constants'
+﻿import Constants from '../common/Constants'
 import { AvatarBar } from './AvatarBar'
 
 @Component
@@ -23,6 +23,7 @@ export struct EmailCard {
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
+            .animation({ duration: 300, curve: Curve.EaseInOut })
           Text(this.time)
             .fontSize(12)
             .fontColor($r('app.color.text_tertiary'))
@@ -37,6 +38,7 @@ export struct EmailCard {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .margin({ top: 4 })
           .width('100%')
+          .animation({ duration: 300, curve: Curve.EaseInOut })
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
@@ -53,7 +55,7 @@ export struct EmailCard {
     .padding({ top: 14, bottom: 14, left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
     .borderRadius(Constants.RADIUS_CARD)
     .backgroundColor($r('app.color.card'))
-    .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 4, bottom: 4 })
+    .margin({ top: 4, bottom: 4 })
     .onClick(() => {
       if (this.onCardClick) { this.onCardClick() }
     })

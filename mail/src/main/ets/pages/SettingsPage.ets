@@ -21,7 +21,7 @@ export struct SettingsPage {
           .margin({ top: 8 })
       }
       .width('100%')
-      .padding({ top: 40, bottom: 28 })
+      .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 0, bottom: 28 })
       .alignItems(HorizontalAlign.Center)
 
       List() {
