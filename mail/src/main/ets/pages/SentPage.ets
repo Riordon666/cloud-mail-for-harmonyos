@@ -1,4 +1,4 @@
-import Constants from '../common/Constants'
+﻿import Constants from '../common/Constants'
 
 @Component
 export struct SentPage {
@@ -12,9 +12,9 @@ export struct SentPage {
         .width('100%')
 
       Column() {
-        SymbolGlyph('sys.symbol.paperplane_fill')
+        SymbolGlyph($r('sys.symbol.paperplane'))
           .fontSize(48)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor([$r('app.color.text_tertiary')])
         Text('暂无已发送邮件')
           .fontSize(16)
           .fontColor($r('app.color.text_tertiary'))

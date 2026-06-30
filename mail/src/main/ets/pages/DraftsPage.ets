@@ -1,4 +1,4 @@
-import Constants from '../common/Constants'
+﻿import Constants from '../common/Constants'
 
 @Component
 export struct DraftsPage {
@@ -12,9 +12,9 @@ export struct DraftsPage {
         .width('100%')
 
       Column() {
-        SymbolGlyph('sys.symbol.doc_fill')
+        SymbolGlyph($r('sys.symbol.doc'))
           .fontSize(48)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor([$r('app.color.text_tertiary')])
         Text('暂无草稿')
           .fontSize(16)
           .fontColor($r('app.color.text_tertiary'))

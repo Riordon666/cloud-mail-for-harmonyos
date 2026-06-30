@@ -1,4 +1,4 @@
-import Constants from '../common/Constants'
+﻿import Constants from '../common/Constants'
 import { AvatarBar } from '../components/AvatarBar'
 
 @Component
@@ -6,7 +6,7 @@ export struct SettingsPage {
   build() {
     Column() {
       Column() {
-        AvatarBar({ name: 'admin@riordon.xyz', size: 72, fontSize: 32, bgColor: '#317AF7' })
+        AvatarBar({ name: 'admin@riordon.xyz', avatarSize: 72, fontSize: 32, bgColor: '#317AF7' })
           .margin({ bottom: 16 })
         Text('admin@riordon.xyz')
           .fontSize(20)
@@ -77,7 +77,7 @@ export struct SettingsPage {
           .fontSize(14)
           .fontColor($r('app.color.text_tertiary'))
       }
-      Text('›')
+      Text('〉')
         .fontSize(18)
         .fontColor($r('app.color.text_tertiary'))
         .margin({ left: 4 })

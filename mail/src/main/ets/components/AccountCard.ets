@@ -3,17 +3,17 @@ import { AvatarBar } from './AvatarBar'
 
 @Component
 export struct AccountCard {
-  @Prop email: string
+  @Prop email: string = ''
   @Prop unread: number = 0
   @Prop total: number = 0
   @Prop isPrimary: boolean = false
-  onClick?: () => void
+  onCardClick?: () => void
 
   build() {
     Row() {
       AvatarBar({
         name: this.email,
-        size: 44,
+        avatarSize: 44,
         fontSize: 18,
         bgColor: this.isPrimary ? '#317AF7' : '#D1D1D6'
       })
@@ -51,7 +51,7 @@ export struct AccountCard {
     .backgroundColor($r('app.color.card'))
     .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 4, bottom: 4 })
     .onClick(() => {
-      if (this.onClick) { this.onClick() }
+      if (this.onCardClick) { this.onCardClick() }
     })
   }
 }

@@ -3,15 +3,15 @@ import { AvatarBar } from './AvatarBar'
 
 @Component
 export struct EmailCard {
-  @Prop name: string
-  @Prop subject: string
-  @Prop time: string
+  @Prop name: string = ''
+  @Prop subject: string = ''
+  @Prop time: string = ''
   @Prop unread: boolean = false
-  onClick?: () => void
+  onCardClick?: () => void
 
   build() {
     Row() {
-      AvatarBar({ name: this.name, size: 44, fontSize: 18 })
+      AvatarBar({ name: this.name, avatarSize: 44, fontSize: 18 })
         .margin({ right: 12 })
 
       Column() {
@@ -55,7 +55,7 @@ export struct EmailCard {
     .backgroundColor($r('app.color.card'))
     .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 4, bottom: 4 })
     .onClick(() => {
-      if (this.onClick) { this.onClick() }
+      if (this.onCardClick) { this.onCardClick() }
     })
   }
 }

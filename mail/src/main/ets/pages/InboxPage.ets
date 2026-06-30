@@ -1,5 +1,5 @@
-import Constants from '../common/Constants'
-import { MOCK_EMAILS } from '../common/MockData'
+﻿import Constants from '../common/Constants'
+import { MOCK_EMAILS, EmailMock } from '../common/MockData'
 import { EmailCard } from '../components/EmailCard'
 
 @Component
@@ -23,7 +23,7 @@ export struct InboxPage {
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 8, bottom: 8 })
       }
 
-      ForEach(MOCK_EMAILS, (item, index: number) => {
+      ForEach(MOCK_EMAILS, (item: EmailMock, index: number) => {
         ListItem() {
           EmailCard({
             name: item.name,
@@ -32,7 +32,7 @@ export struct InboxPage {
             unread: item.unread
           })
         }
-      }, (item) => item.id.toString())
+      }, (item: EmailMock): string => item.id.toString())
     }
     .width('100%')
     .height('100%')

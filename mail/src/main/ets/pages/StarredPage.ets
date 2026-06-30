@@ -1,4 +1,4 @@
-import Constants from '../common/Constants'
+﻿import Constants from '../common/Constants'
 
 @Component
 export struct StarredPage {
@@ -12,9 +12,9 @@ export struct StarredPage {
         .width('100%')
 
       Column() {
-        SymbolGlyph('sys.symbol.star_fill')
+        SymbolGlyph($r('sys.symbol.star'))
           .fontSize(48)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor([$r('app.color.text_tertiary')])
         Text('暂无星标邮件')
           .fontSize(16)
           .fontColor($r('app.color.text_tertiary'))
