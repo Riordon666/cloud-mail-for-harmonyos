@@ -8,7 +8,7 @@ export struct StarredPage {
         .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_primary'))
-        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 0, bottom: 16 })
+        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 16 })
         .width('100%')
 
       Column() {

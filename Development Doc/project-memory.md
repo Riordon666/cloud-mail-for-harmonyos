@@ -1,6 +1,6 @@
 ﻿# Cloud Mail for HarmonyOS · 项目记忆
 
-> 最后更新：2026-07-01
+> 最后更新：2026-07-02
 
 ## 项目概况
 
@@ -20,7 +20,7 @@
 |------|------|----------|------|
 | F01 - UI框架与沉浸光感 | ✅ 完成 | 2026-06-30 | finished/F01-UI框架与沉浸光感.md |
 | F02 - 收件箱完善 | ✅ 完成 | 2026-06-30 | finished/F02-收件箱完善.md |
-| 03 - 邮件详情与写邮件 | ⬜ 待开始 | - | plans/03-邮件详情与写邮件.md |
+| 03 - 邮件详情与写邮件 | 🟡 进行中 | - | plans/03-邮件详情与写邮件.md |
 | 04 - 星标发件箱草稿箱 | ⬜ 待开始 | - | plans/04-星标发件箱草稿箱.md |
 | 05 - 登录注册 | ⬜ 待开始 | - | plans/05-登录注册.md |
 | 06 - 账号管理 | ⬜ 待开始 | - | plans/06-账号管理.md |
@@ -43,7 +43,7 @@
 | 搜索组件 | Search (官方) | 自带搜索图标和清除按钮 |
 | ForEach key | id + unread | key 变化触发重建，确保已读状态刷新 |
 | 编码 | UTF-8 with BOM | 鸿蒙 .ets 文件必须 UTF-8 BOM |
-| API 前缀 | () 资源引用 | 适配深色模式自动切换 |
+| API 前缀 | $r() 资源引用 | 适配深色模式自动切换 |
 
 ## 设计 Token
 
@@ -59,7 +59,35 @@
 ## 开发规范
 
 - 所有 .ets 文件必须 UTF-8 with BOM
-- 使用 () 引用资源颜色，不要硬编码
+- 使用 $r() 引用资源颜色，不要硬编码
 - 边距统一使用 Constants.PADDING_EDGE
 - 不要用 HdsNavigation 作为容器（除非需要标题栏）
 - API 23 限制：无模板字符串(反引号)、无 uiMaterial、无 systemMaterial (FAB)
+
+## 排坑记录 (2026-07-02)
+
+### 坑1：HdsNavDestination 内容垂直居中
+- **现象**：Scroll 内部 Column 的内容垂直居中，即使设了 alignItems(Start) + justifyContent(Start) 也没用
+- **根因**：titleMode(HdsNavDestinationTitleMode.MINI) + bindToScrollable 组合导致。当内容不足以填满 Scroll 剩余空间时，系统会自动把内容推到垂直中心，以便标题栏折叠动画有合理起点
+- **验证**：把内容精简到 3 行 Text 依然居中；注释掉 bindToScrollable 依然居中；注释掉 titleMode 依然居中（说明这两个属性只要 HdsNavDestination 被用作 NavDestination 子页面就会触发此行为）
+- **解决方案**：在 Scroll 内部 Column 的最后一个子元素放 Blank().layoutWeight(1)，让 Blank 吃掉所有剩余空间，把实际内容推到顶部
+- **注意**：不要用 Blank().height(固定值)，必须用 layoutWeight(1) 来动态填充
+- **对比**：ComposePage 不居中是因为内容多（收件人/抄送/密送/主题/正文/发送按钮）天然填满了 Scroll
+
+### 坑2：底部悬浮工具栏
+- **现状**：用 Stack({ alignContent: Alignment.Bottom }) 包裹 Scroll + 底部 Row，Row 设 backgroundColor("#CCFFFFFF") 半透明
+- **尝试过的方案**：
+  - ImmersiveMaterial + .systemMaterial() → SDK 26 才支持，API 23 编译报错
+  - backgroundBlurStyle(BlurStyle.COMPONENT_THICK) → 可以用但效果一般
+  - shadow + borderRadius → 可以加但不能连写太多属性，容易导致内容布局异常
+- **建议**：悬浮工具栏先用 Stack + 半透明背景做，后续升级 SDK 26 后再改用 ImmersiveMaterial
+
+### 坑3：PowerShell Set-Content 会导致 UTF-8 中文乱码
+- **原因**：PowerShell 的 Set-Content 默认用系统编码（不是 UTF-8），会把中文全变成乱码
+- **解决方案**：用 [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false)) 写入文件
+- **$false 参数含义**：不带 BOM 的 UTF-8 编码（鸿蒙 .ets 文件需要 BOM，后续再确认）
+
+### 坑4：git show 恢复文件时会混入 stderr
+- 不要用 `git show HASH:path 2>&1 | Out-File` 恢复文件，会混入 git 的 stderr 输出
+- 用 `git checkout HASH -- path` 但在工作区文件不在 commit 中时会失败
+- 最可靠的方式：手动重写文件，用 WriteAllText 写入

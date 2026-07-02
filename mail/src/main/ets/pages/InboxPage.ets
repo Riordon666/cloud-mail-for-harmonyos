@@ -1,19 +1,29 @@
-﻿import Constants from '../common/Constants'
-import { MOCK_EMAILS, EmailMock } from '../common/MockData'
-import { EmailCard } from '../components/EmailCard'
+﻿import Constants from "../common/Constants"
+import { MOCK_EMAILS, EmailMock } from "../common/MockData"
+import { EmailCard } from "../components/EmailCard"
+
+class DetailParams {
+  emailData: EmailMock
+
+  constructor(emailData: EmailMock) {
+    this.emailData = emailData
+  }
+}
 
 @Component
 export struct InboxPage {
   private scroller: Scroller = new Scroller()
-  @State searchText: string = ''
+  private searchController: SearchController = new SearchController()
+  @State searchText: string = ""
   @State emailList: EmailMock[] = MOCK_EMAILS
+  private pathStack: NavPathStack = AppStorage.get("appPathStack") as NavPathStack
 
   aboutToAppear(): void {
     this.emailList = MOCK_EMAILS
   }
 
   private getFiltered(): EmailMock[] {
-    if (this.searchText.trim() === '') {
+    if (this.searchText.trim() === "") {
       return this.emailList
     }
     return this.emailList.filter((e: EmailMock) =>
@@ -50,35 +60,51 @@ export struct InboxPage {
     this.emailList = newList
   }
 
+  private openDetail(item: EmailMock): void {
+    const params: DetailParams = new DetailParams(item)
+    this.pathStack.pushPathByName("DetailPage", params)
+  }
+
   build() {
     Column() {
-      Row() {
-        Search({ placeholder: '搜索邮件', value: this.searchText })
-          .placeholderColor($r('app.color.text_tertiary'))
-          .fontColor($r('app.color.text_primary'))
-          .backgroundColor($r('app.color.card'))
-          .borderRadius(Constants.RADIUS_BUTTON)
-          .height(48)
-          .layoutWeight(1)
-          .cancelButton({ style: CancelButtonStyle.INPUT })
-          .onChange((value: string) => {
-            this.searchText = value
-          })
-      }
-      .width('100%')
-      .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 0, bottom: 8 })
+      Text("收件箱")
+        .fontSize(28)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r("app.color.text_primary"))
+        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
+        .width("100%")
+
+      Search({ value: this.searchText, placeholder: "搜索邮件", controller: this.searchController })
+        .searchIcon({ src: $r("sys.media.ohos_ic_public_search_filled"), size: 20 })
+        .cancelButton({
+          style: CancelButtonStyle.INPUT,
+          icon: {
+            size: 18,
+            color: $r("app.color.text_tertiary"),
+            src: ""
+          }
+        })
+        .placeholderColor($r("app.color.text_tertiary"))
+        .fontColor($r("app.color.text_primary"))
+        .backgroundColor($r("app.color.card"))
+        .borderRadius(Constants.RADIUS_BUTTON)
+        .height(48)
+        .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, bottom: 8 })
+        .onChange((value: string) => {
+          this.searchText = value
+        })
 
       if (this.getFiltered().length === 0) {
         Column() {
-          SymbolGlyph($r('sys.symbol.magnifyingglass'))
+          SymbolGlyph($r("sys.symbol.magnifyingglass"))
             .fontSize(48)
-            .fontColor([$r('app.color.text_tertiary')])
-          Text(this.searchText !== '' ? '未找到相关邮件' : '暂无邮件')
+            .fontColor([$r("app.color.text_tertiary")])
+          Text(this.searchText !== "" ? "未找到相关邮件" : "暂无邮件")
             .fontSize(Constants.FONT_SIZE_SUBTITLE)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor($r("app.color.text_tertiary"))
             .margin({ top: 12 })
         }
-        .width('100%')
+        .width("100%")
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else {
@@ -89,7 +115,8 @@ export struct InboxPage {
                 name: item.name,
                 subject: item.subject,
                 time: item.time,
-                unread: item.unread
+                unread: item.unread,
+                onCardClick: () => { this.openDetail(item) }
               })
             }
             .swipeAction({
@@ -104,9 +131,9 @@ export struct InboxPage {
               },
               edgeEffect: SwipeEdgeEffect.Spring
             })
-          }, (item: EmailMock): string => item.id.toString() + '_' + item.unread.toString())
+          }, (item: EmailMock): string => item.id.toString() + "_" + item.unread.toString())
         }
-        .width('100%')
+        .width("100%")
         .layoutWeight(1)
         .scrollBar(BarState.Off)
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
@@ -114,9 +141,9 @@ export struct InboxPage {
         })
       }
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor($r('app.color.background'))
+    .width("100%")
+    .height("100%")
+    .backgroundColor($r("app.color.background"))
   }
 
   @Builder SwipeActions(id: number, unread: boolean) {
@@ -124,10 +151,10 @@ export struct InboxPage {
       if (unread) {
         Button() {
           Column() {
-            SymbolGlyph($r('sys.symbol.checkmark'))
+            SymbolGlyph($r("sys.symbol.checkmark"))
               .fontSize(20)
               .fontColor([Color.White])
-            Text('已读')
+            Text("已读")
               .fontSize(12)
               .fontColor(Color.White)
           }
@@ -135,8 +162,8 @@ export struct InboxPage {
           .alignItems(HorizontalAlign.Center)
         }
         .width(60)
-        .height('100%')
-        .backgroundColor('#34C759')
+        .height("100%")
+        .backgroundColor("#34C759")
         .onClick(() => {
           this.markAsRead(id)
         })
@@ -144,10 +171,10 @@ export struct InboxPage {
 
       Button() {
         Column() {
-          SymbolGlyph($r('sys.symbol.star'))
+          SymbolGlyph($r("sys.symbol.star"))
             .fontSize(20)
             .fontColor([Color.White])
-          Text('星标')
+          Text("星标")
             .fontSize(12)
             .fontColor(Color.White)
         }
@@ -155,17 +182,17 @@ export struct InboxPage {
         .alignItems(HorizontalAlign.Center)
       }
       .width(60)
-      .height('100%')
-      .backgroundColor('#FF9500')
+      .height("100%")
+      .backgroundColor("#FF9500")
       .onClick(() => {
       })
 
       Button() {
         Column() {
-          SymbolGlyph($r('sys.symbol.trash'))
+          SymbolGlyph($r("sys.symbol.trash"))
             .fontSize(20)
             .fontColor([Color.White])
-          Text('删除')
+          Text("删除")
             .fontSize(12)
             .fontColor(Color.White)
         }
@@ -173,12 +200,12 @@ export struct InboxPage {
         .alignItems(HorizontalAlign.Center)
       }
       .width(60)
-      .height('100%')
-      .backgroundColor($r('app.color.danger'))
+      .height("100%")
+      .backgroundColor($r("app.color.danger"))
       .onClick(() => {
         this.deleteEmail(id)
       })
     }
-    .height('100%')
+    .height("100%")
   }
 }

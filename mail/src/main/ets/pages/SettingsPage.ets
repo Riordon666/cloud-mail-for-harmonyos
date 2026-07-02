@@ -5,6 +5,13 @@ import { AvatarBar } from '../components/AvatarBar'
 export struct SettingsPage {
   build() {
     Column() {
+      Text('个人设置')
+        .fontSize(28)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 16 })
+        .width('100%')
+
       Column() {
         AvatarBar({ name: 'admin@riordon.xyz', avatarSize: 72, fontSize: 32, bgColor: '#317AF7' })
           .margin({ bottom: 16 })
@@ -21,7 +28,7 @@ export struct SettingsPage {
           .margin({ top: 8 })
       }
       .width('100%')
-      .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 0, bottom: 28 })
+      .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 28 })
       .alignItems(HorizontalAlign.Center)
 
       List() {
@@ -35,7 +42,7 @@ export struct SettingsPage {
             .fontSize(12)
             .fontColor($r('app.color.text_tertiary'))
             .fontWeight(FontWeight.Medium)
-            .padding({ left: Constants.PADDING_EDGE, top: 20, bottom: 6 })
+            .padding({ left: Constants.PADDING_EDGE, top: 16, bottom: 6 })
             .width('100%')
         }
 
@@ -50,16 +57,16 @@ export struct SettingsPage {
             Text('退出登录')
               .fontSize(16)
               .fontColor($r('app.color.danger'))
-              .fontWeight(FontWeight.Medium)
           }
           .width('100%')
           .justifyContent(FlexAlign.Center)
-          .padding({ top: 14, bottom: 14 })
+          .padding({ top: 28, bottom: 8 })
         }
       }
       .width('100%')
       .layoutWeight(1)
-      .scrollBar(BarState.Off)
+      .backgroundColor($r('app.color.card'))
+      .borderRadius({ topLeft: 20, topRight: 20 })
     }
     .width('100%')
     .height('100%')
@@ -71,19 +78,18 @@ export struct SettingsPage {
       Text(title)
         .fontSize(16)
         .fontColor($r('app.color.text_primary'))
-        .layoutWeight(1)
+      Blank()
       if (value !== '') {
         Text(value)
           .fontSize(14)
           .fontColor($r('app.color.text_tertiary'))
+          .margin({ right: 8 })
       }
-      Text('〉')
-        .fontSize(18)
-        .fontColor($r('app.color.text_tertiary'))
-        .margin({ left: 4 })
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(16)
+        .fontColor([$r('app.color.text_tertiary')])
     }
     .width('100%')
-    .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 14, bottom: 14 })
-    .backgroundColor($r('app.color.card'))
+    .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 16 })
   }
 }

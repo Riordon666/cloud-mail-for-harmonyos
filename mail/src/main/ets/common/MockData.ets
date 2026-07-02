@@ -96,6 +96,69 @@ export const MOCK_EMAILS: EmailMock[] = [
     body: '有人在 "产品需求" 文档中 @了你，请查看最新评论。',
     time: '周日', unread: false, cc: [], bcc: [], attList: [],
     htmlContent: '<p>有人在 "产品需求" 文档中 @了你。</p>'
+  },
+  {
+    id: 7, name: 'Google', email: 'no-reply@accounts.google.com',
+    subject: 'Security alert: New sign-in',
+    body: 'A new sign-in was detected on your account from a new device.',
+    time: '周六', unread: true, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>A new sign-in was detected on your account.</p>'
+  },
+  {
+    id: 8, name: 'Vercel', email: 'noreply@vercel.com',
+    subject: 'Deployment ready: cloud-mail',
+    body: 'Your latest deployment is now live on Vercel.',
+    time: '周六', unread: false, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>Your latest deployment is now live.</p>'
+  },
+  {
+    id: 9, name: 'Zoom', email: 'no-reply@zoom.us',
+    subject: 'Meeting recording available',
+    body: 'The recording for "Sprint Review" is now available to view.',
+    time: '周五', unread: false, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>The recording for Sprint Review is now available.</p>'
+  },
+  {
+    id: 10, name: 'Figma', email: 'notifications@figma.com',
+    subject: 'New comments on your design',
+    body: '3 new comments were added to "Home Screen v2".',
+    time: '周五', unread: true, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>3 new comments were added.</p>'
+  },
+  {
+    id: 11, name: 'Linear', email: 'notifications@linear.app',
+    subject: 'Issue assigned: Fix login bug',
+    body: 'You have been assigned to MAIL-404: Fix login redirect issue.',
+    time: '周四', unread: true, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>You have been assigned to MAIL-404.</p>'
+  },
+  {
+    id: 12, name: 'Slack', email: 'notifications@slack.com',
+    subject: 'New mentions in #engineering',
+    body: 'You were mentioned 5 times in #engineering today.',
+    time: '周四', unread: false, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>You were mentioned 5 times today.</p>'
+  },
+  {
+    id: 13, name: 'Stripe', email: 'noreply@stripe.com',
+    subject: 'Payment received: $99.00',
+    body: 'A payment of $99.00 was successfully processed.',
+    time: '周三', unread: false, cc: [], bcc: [], attList: ['invoice_2024.pdf'],
+    htmlContent: '<p>A payment of $99.00 was processed.</p>'
+  },
+  {
+    id: 14, name: 'AWS', email: 'noreply@aws.amazon.com',
+    subject: 'Billing alert: Estimated charges',
+    body: 'Your estimated monthly charges have exceeded your budget threshold.',
+    time: '周三', unread: true, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>Your estimated monthly charges exceeded threshold.</p>'
+  },
+  {
+    id: 15, name: 'Tailwind CSS', email: 'noreply@tailwindcss.com',
+    subject: 'Tailwind CSS v4.0 is here',
+    body: 'Announcing Tailwind CSS v4.0 with new utilities and performance improvements.',
+    time: '周二', unread: false, cc: [], bcc: [], attList: [],
+    htmlContent: '<p>Announcing Tailwind CSS v4.0.</p>'
   }
 ]
 
