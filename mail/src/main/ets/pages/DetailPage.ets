@@ -1,5 +1,5 @@
 import Constants from "../common/Constants"
-import { MOCK_EMAILS, EmailMock } from "../common/MockData"
+import { MOCK_EMAILS, EmailMock, isEmailStarred, toggleEmailStar } from "../common/MockData"
 import { SymbolGlyphModifier } from "@kit.ArkUI"
 import { HdsNavDestination, HdsNavDestinationAttribute, ScrollEffectType, hdsMaterial, HdsNavDestinationTitleMode } from "@kit.UIDesignKit"
 import { promptAction } from "@kit.ArkUI"
@@ -40,6 +40,7 @@ export struct DetailPageContent {
       this.email = this.emailData.emailData
       this.emailList = this.emailData.emailList.slice()
       this.currentIndex = this.emailData.currentIndex
+      this.isStarred = isEmailStarred(this.email.id)
     }
   }
 
@@ -234,6 +235,7 @@ export struct DetailPageContent {
   }
 
   private toggleStar(): void {
-    this.isStarred = !this.isStarred
+    toggleEmailStar(this.email.id)
+    this.isStarred = isEmailStarred(this.email.id)
   }
 }

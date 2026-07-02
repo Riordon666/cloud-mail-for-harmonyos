@@ -1,4 +1,4 @@
-﻿// ===== 邮箱 =====
+// ===== 邮箱 =====
 export interface EmailMock {
   id: number
   name: string
@@ -161,6 +161,28 @@ export const MOCK_EMAILS: EmailMock[] = [
     htmlContent: '<p>Announcing Tailwind CSS v4.0.</p>'
   }
 ]
+
+
+// ===== 星标邮件 ID 集合 =====
+const STARRED_IDS: Set<number> = new Set([1, 3, 7])
+AppStorage.setOrCreate('starredIds', [1, 3, 7])
+
+export function isEmailStarred(id: number): boolean {
+  return STARRED_IDS.has(id)
+}
+
+export function toggleEmailStar(id: number): void {
+  if (STARRED_IDS.has(id)) { STARRED_IDS.delete(id) } else { STARRED_IDS.add(id) }
+  const ids: number[] = []
+  STARRED_IDS.forEach((v: number) => { ids.push(v) })
+  AppStorage.set('starredIds', ids)
+}
+
+export function getStarredIds(): number[] {
+  const arr: number[] = []
+  STARRED_IDS.forEach((v: number) => { arr.push(v) })
+  return arr
+}
 
 // ===== 账户 Mock 数据 =====
 export const MOCK_ACCOUNTS: AccountMock[] = [

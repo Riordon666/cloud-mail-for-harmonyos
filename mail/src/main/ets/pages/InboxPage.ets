@@ -1,5 +1,6 @@
 import Constants from "../common/Constants"
-import { MOCK_EMAILS, EmailMock } from "../common/MockData"
+import { promptAction } from '@kit.ArkUI'
+import { MOCK_EMAILS, EmailMock, toggleEmailStar, isEmailStarred } from "../common/MockData"
 import { EmailCard } from "../components/EmailCard"
 
 class DetailParams {
@@ -20,6 +21,7 @@ export struct InboxPage {
   private searchController: SearchController = new SearchController()
   @State searchText: string = ""
   @State emailList: EmailMock[] = MOCK_EMAILS
+  @State refreshKey: number = 0
   private pathStack: NavPathStack = AppStorage.get("appPathStack") as NavPathStack
 
   aboutToAppear(): void {
@@ -52,6 +54,18 @@ export struct InboxPage {
       }
     }
     this.emailList = newList
+  }
+
+  private toggleStar(id: number): void {
+    toggleEmailStar(id)
+    const isStarred: boolean = isEmailStarred(id)
+    const arr: EmailMock[] = []
+    for (let i = 0; i < this.emailList.length; i++) {
+      arr.push(this.emailList[i])
+    }
+    this.emailList = arr
+    this.refreshKey++
+    promptAction.showToast({ message: isStarred ? '已加入星标' : '已取消星标', duration: 1500 })
   }
 
   private deleteEmail(id: number): void {
@@ -136,7 +150,7 @@ export struct InboxPage {
               },
               edgeEffect: SwipeEdgeEffect.Spring
             })
-          }, (item: EmailMock): string => item.id.toString() + "_" + item.unread.toString())
+          }, (item: EmailMock): string => item.id.toString() + "_" + item.unread.toString() + "_" + this.refreshKey.toString())
         }
         .width("100%")
         .layoutWeight(1)
@@ -176,10 +190,10 @@ export struct InboxPage {
 
       Button() {
         Column() {
-          SymbolGlyph($r("sys.symbol.star"))
+          SymbolGlyph(isEmailStarred(id) ? $r("sys.symbol.star_slash") : $r("sys.symbol.star"))
             .fontSize(20)
             .fontColor([Color.White])
-          Text("星标")
+          Text(isEmailStarred(id) ? "取消标" : "星标")
             .fontSize(12)
             .fontColor(Color.White)
         }
@@ -188,8 +202,9 @@ export struct InboxPage {
       }
       .width(60)
       .height("100%")
-      .backgroundColor("#FF9500")
+      .backgroundColor(isEmailStarred(id) ? "#999999" : "#FF9500")
       .onClick(() => {
+        this.toggleStar(id)
       })
 
       Button() {
