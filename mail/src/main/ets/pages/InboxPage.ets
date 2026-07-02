@@ -1,12 +1,16 @@
-﻿import Constants from "../common/Constants"
+import Constants from "../common/Constants"
 import { MOCK_EMAILS, EmailMock } from "../common/MockData"
 import { EmailCard } from "../components/EmailCard"
 
 class DetailParams {
   emailData: EmailMock
+  emailList: EmailMock[]
+  currentIndex: number
 
-  constructor(emailData: EmailMock) {
+  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
     this.emailData = emailData
+    this.emailList = emailList
+    this.currentIndex = currentIndex
   }
 }
 
@@ -60,8 +64,9 @@ export struct InboxPage {
     this.emailList = newList
   }
 
-  private openDetail(item: EmailMock): void {
-    const params: DetailParams = new DetailParams(item)
+  private openDetail(item: EmailMock, index: number): void {
+    const filtered: EmailMock[] = this.getFiltered()
+    const params: DetailParams = new DetailParams(item, filtered, index)
     this.pathStack.pushPathByName("DetailPage", params)
   }
 
@@ -116,7 +121,7 @@ export struct InboxPage {
                 subject: item.subject,
                 time: item.time,
                 unread: item.unread,
-                onCardClick: () => { this.openDetail(item) }
+                onCardClick: () => { this.openDetail(item, index) }
               })
             }
             .swipeAction({

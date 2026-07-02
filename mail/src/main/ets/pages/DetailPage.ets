@@ -1,11 +1,19 @@
 import Constants from "../common/Constants"
-import { EmailMock } from "../common/MockData"
+import { MOCK_EMAILS, EmailMock } from "../common/MockData"
 import { SymbolGlyphModifier } from "@kit.ArkUI"
 import { HdsNavDestination, HdsNavDestinationAttribute, ScrollEffectType, hdsMaterial, HdsNavDestinationTitleMode } from "@kit.UIDesignKit"
+import { promptAction } from "@kit.ArkUI"
 
 class DetailParams {
   emailData: EmailMock
-  constructor(emailData: EmailMock) { this.emailData = emailData }
+  emailList: EmailMock[]
+  currentIndex: number
+
+  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
+    this.emailData = emailData
+    this.emailList = emailList
+    this.currentIndex = currentIndex
+  }
 }
 
 @Component
@@ -14,19 +22,25 @@ export struct DetailPageContent {
   @Prop emailData: DetailParams = new DetailParams({
     id: 0, name: "", email: "", subject: "", body: "", time: "",
     unread: false, cc: [], bcc: [], attList: [], htmlContent: ""
-  })
+  }, [], 0)
   private pathStack: NavPathStack | null = null
   @State email: EmailMock = {
     id: 0, name: "", email: "", subject: "", body: "", time: "",
     unread: false, cc: [], bcc: [], attList: [], htmlContent: ""
   }
+  @State emailList: EmailMock[] = []
+  @State currentIndex: number = 0
   @State showDetail: boolean = false
   @State showCcBcc: boolean = false
   @State isStarred: boolean = false
 
   aboutToAppear(): void {
     this.pathStack = AppStorage.get("appPathStack") as NavPathStack
-    if (this.emailData?.emailData !== undefined) { this.email = this.emailData.emailData }
+    if (this.emailData?.emailData !== undefined) {
+      this.email = this.emailData.emailData
+      this.emailList = this.emailData.emailList.slice()
+      this.currentIndex = this.emailData.currentIndex
+    }
   }
 
   build() {
@@ -112,17 +126,18 @@ export struct DetailPageContent {
           Column() {
             SymbolGlyph($r("sys.symbol.arrowshape_turn_up_left")).fontSize(24).fontColor([$r("app.color.text_primary")])
             Text("回复").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => {})
+          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.replyEmail() })
 
           Column() {
             SymbolGlyph($r("sys.symbol.arrowshape_turn_up_right")).fontSize(24).fontColor([$r("app.color.text_primary")])
             Text("转发").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => {})
+          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.forwardEmail() })
 
           Column() {
-            SymbolGlyph($r("sys.symbol.star")).fontSize(24).fontColor([$r("app.color.text_primary")])
-            Text("星标").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.isStarred = !this.isStarred })
+            SymbolGlyph(this.isStarred ? $r("sys.symbol.star_fill") : $r("sys.symbol.star"))
+              .fontSize(24).fontColor(this.isStarred ? [$r("app.color.primary")] : [$r("app.color.text_primary")])
+            Text(this.isStarred ? "已星标" : "星标").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
+          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.toggleStar() })
 
           Column() {
             SymbolGlyph($r("sys.symbol.trash")).fontSize(24).fontColor([$r("app.color.text_primary")])
@@ -142,8 +157,8 @@ export struct DetailPageContent {
         menu: {
           maxCount: 2,
           value: [
-            { content: { label: "上一封", icon: $r("sys.symbol.chevron_up"), isEnabled: true, action: () => { this.prevEmail() } } },
-            { content: { label: "下一封", icon: $r("sys.symbol.chevron_down"), isEnabled: true, action: () => { this.nextEmail() } } }
+            { content: { label: "上一封", icon: $r("sys.symbol.chevron_up"), isEnabled: this.currentIndex > 0, action: () => { this.prevEmail() } } },
+            { content: { label: "下一封", icon: $r("sys.symbol.chevron_down"), isEnabled: this.currentIndex < this.emailList.length - 1, action: () => { this.nextEmail() } } }
           ]
         }
       },
@@ -176,7 +191,49 @@ export struct DetailPageContent {
     .width("100%").height("100%").backgroundColor($r("app.color.background"))
   }
 
-  private prevEmail(): void {}
-  private nextEmail(): void {}
-  private deleteEmail(): void {}
+  private prevEmail(): void {
+    if (this.currentIndex > 0) {
+      this.currentIndex--
+      this.email = this.emailList[this.currentIndex]
+      this.showDetail = false
+      this.isStarred = false
+      this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
+    }
+  }
+
+  private nextEmail(): void {
+    if (this.currentIndex < this.emailList.length - 1) {
+      this.currentIndex++
+      this.email = this.emailList[this.currentIndex]
+      this.showDetail = false
+      this.isStarred = false
+      this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
+    }
+  }
+
+  private deleteEmail(): void {
+    this.emailList.splice(this.currentIndex, 1)
+    if (this.emailList.length === 0) {
+      if (this.pathStack !== null) { this.pathStack.pop() }
+      return
+    }
+    if (this.currentIndex >= this.emailList.length) {
+      this.currentIndex = this.emailList.length - 1
+    }
+    this.email = this.emailList[this.currentIndex]
+    this.showDetail = false
+    this.isStarred = false
+  }
+
+  private replyEmail(): void {
+    promptAction.showToast({ message: "回复功能开发中", duration: 2000 })
+  }
+
+  private forwardEmail(): void {
+    promptAction.showToast({ message: "转发功能开发中", duration: 2000 })
+  }
+
+  private toggleStar(): void {
+    this.isStarred = !this.isStarred
+  }
 }

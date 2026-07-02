@@ -1,4 +1,4 @@
-﻿import { hdsMaterial, HdsTabs, HdsTabsController } from "@kit.UIDesignKit"
+import { hdsMaterial, HdsTabs, HdsTabsController } from "@kit.UIDesignKit"
 import { HdsNavigation, HdsNavigationAttribute } from "@kit.UIDesignKit"
 import { SymbolGlyphModifier } from "@kit.ArkUI"
 import { motion } from "@kit.MultimodalAwarenessKit"
@@ -14,9 +14,13 @@ import { EmailMock } from "../common/MockData"
 
 class DetailParams {
   emailData: EmailMock
+  emailList: EmailMock[]
+  currentIndex: number
 
-  constructor(emailData: EmailMock) {
+  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
     this.emailData = emailData
+    this.emailList = emailList
+    this.currentIndex = currentIndex
   }
 }
 
