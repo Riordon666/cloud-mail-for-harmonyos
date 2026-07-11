@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # ✉️ Cloud Mail for HarmonyOS
 
@@ -20,7 +20,7 @@
 
 ## 📖 项目简介
 
-**Cloud Mail** 是一款将 Cloud Mail（原 Vue 3 + Cloudflare Workers 邮件服务）完整移植为 **HarmonyOS 原生应用** 的邮件客户端。
+**Cloud Mail** 是一款将 **[Cloud Mail](https://github.com/maillab/cloud-mail)**（原 Vue 3 + Cloudflare Workers 邮件服务）完整移植为 **HarmonyOS 原生应用** 的邮件客户端。
 
 这不是简单的网页套壳，而是基于 **ArkUI 声明式 UI** 与 **ArkTS** 语言、采用华为 **HDS（HarmonyOS Design System）** 组件库从零重写的原生客户端——沉浸式全屏体验、HdsTabs 底部导航、LazyForEach 虚拟滚动、断点式平板适配，一个都不少。
 
@@ -49,8 +49,8 @@
 - **HDS 设计语言**：HdsTabs + HdsNavigation + SymbolGlyph 系统符号
 - **深色模式**：`$r()` 资源引用，主题切换无闪烁，preferences 记忆偏好
 - **平板适配**：断点系统（sm/md/lg），内容区最大宽度约束
-- **蓝色全屏启动闪屏**：系统启动窗口 + 应用内闪屏无缝衔接
-- **Push Kit 推送**：新邮件实时推送
+- **系统启动窗口**：`startWindowIcon` + `startWindowBackground` 无缝启动体验
+- **Push Kit 推送**：基础封装就绪，需 AppGallery Connect 配置后启用
 
 ---
 
@@ -77,14 +77,14 @@ mail/src/main/ets/
 │   ├── AccountApi       #   副邮箱 CRUD
 │   ├── AdminApi         #   管理后台接口
 │   └── SettingsApi      #   系统/个人设置
-├── common/              # 基础设施（13 个）
+├── common/              # 基础设施（12 个）
 │   ├── HttpClient       #   HTTP 网络层
 │   ├── *Service         #   各业务服务（Auth/Mail/Draft/...）
 │   ├── MailModels       #   数据模型
 │   ├── *DataSource      #   LazyForEach 数据源
 │   └── PushService      #   Push Kit 推送
 ├── components/          # 公用组件（8 个）
-├── pages/               # 页面（17 个）
+├── pages/               # 页面（16 个）
 │   ├── Index            #   入口 · 5 Tab 导航
 │   ├── AuthPage         #   登录/注册
 │   ├── Inbox/Sent/...   #   邮件各页
@@ -108,16 +108,21 @@ mail/src/main/ets/
 
 | 模块 | 功能 |
 |------|------|
-| 📥 收件箱 | 搜索、未读角标、左滑标记已读/删除、下拉刷新 |
-| 📤 已发送 | 发送记录浏览 |
-| ⭐ 星标 | 星标邮件集中查看 |
-| 📝 草稿箱 | 本地草稿保存、继续编辑、左滑删除 |
-| 📄 邮件详情 | 附件下载、上下翻页、星标、删除 |
+| 📥 收件箱 | 搜索、未读角标、左滑标记已读/星标/删除、LazyForEach 虚拟滚动 |
+| 📤 已发送 | 发送记录浏览、LazyForEach 虚拟滚动 |
+| ⭐ 星标 | 星标邮件集中查看、取消星标、LazyForEach 虚拟滚动 |
+| 📝 草稿箱 | 本地草稿保存、继续编辑、左滑删除、LazyForEach 虚拟滚动 |
+| 📄 邮件详情 | 附件下载、上一封/下一封翻页、星标、删除、底部悬浮工具栏 |
 | ✏️ 写邮件 | 收件人/抄送/密送、附件上传、草稿自动保存 |
-| 🔐 登录注册 | 会话持久化、自动刷新 |
-| ⚙️ 个人设置 | 头像、昵称、外观主题 |
-| 👥 账号管理 | 副邮箱增删改 |
-| 🛡️ 管理后台 | 用户/全局邮件/角色/数据分析/注册码 |
+| 🔐 登录注册 | 会话持久化、authToken 自动刷新 |
+| ⚙️ 个人设置 | 头像上传、昵称、链接管理、外观主题（浅/深/跟随系统） |
+| 👥 账号管理 | 副邮箱增删查 |
+| 🛡️ 管理后台 | 用户管理/全局邮件/角色权限/数据分析/注册码（5 页） |
+| 🎨 主题切换 | 深色/浅色/跟随系统、preferences 持久化、$r() 无缝切换 |
+| 📱 平板适配 | BreakpointSystem 断点布局（sm/md/lg）、内容区最大宽度约束 |
+| 📡 Push Kit | 推送基础封装就绪（需 AppGallery Connect 配置后启用） |
+| 🔄 备份恢复 | MailBackupAbility 扩展，preferences 数据持久化 |
+| 🚫 404 兜底 | NotFoundPage 未知路由兜底 |
 
 ---
 
