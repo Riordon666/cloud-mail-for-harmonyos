@@ -1,12 +1,16 @@
-﻿import { PromptAction } from '@kit.ArkUI'
+﻿﻿import { PromptAction } from '@kit.ArkUI'
+import { ConfigurationConstant } from '@kit.AbilityKit'
 import Constants from '../common/Constants'
 import { AvatarBar } from '../components/AvatarBar'
+import { setAppColorMode } from '../mailability/MailAbility'
 
 @Component
 export struct SettingsPage {
   @StorageLink('authEmail') authEmail: string = ''
   @StorageLink('authRole') authRole: string = 'user'
+  @StorageLink('currentColorMode') currentColorMode: number = -1
   @State showLogoutConfirm: boolean = false
+  @State showThemeDialog: boolean = false
   private toast: PromptAction = this.getUIContext().getPromptAction()
   onLogout?: () => void
   onManageAccounts?: () => void
@@ -16,6 +20,12 @@ export struct SettingsPage {
   onManageRoles?: () => void
   onOpenAnalytics?: () => void
   onManageRegistrationCodes?: () => void
+
+  aboutToAppear(): void {
+    if (this.currentColorMode === undefined || this.currentColorMode === null) {
+      this.currentColorMode = -1
+    }
+  }
 
   build() {
     Stack() {
@@ -48,7 +58,7 @@ export struct SettingsPage {
 
         List() {
           ListItem() { this.MenuItem('账号管理', '', () => { this.openAccountManagement() }) }
-          ListItem() { this.MenuItem('外观设置', '跟随系统', () => { this.showToast('主题切换将在 F13 阶段开放') }) }
+          ListItem() { this.MenuItem('外观设置', this.getThemeLabel(), () => { this.showThemeDialog = true }) }
           ListItem() { this.MenuItem('通知设置', '', () => { this.showToast('通知设置将在后续阶段开放') }) }
           ListItem() { this.MenuItem('隐私政策', '', () => { this.showToast('隐私政策页面将在后续阶段开放') }) }
           ListItem() { this.MenuItem('关于', 'v1.0.0', () => { this.showToast('Cloud Mail for HarmonyOS') }) }
@@ -98,9 +108,70 @@ export struct SettingsPage {
       if (this.showLogoutConfirm) {
         this.LogoutConfirmDialog()
       }
+
+      if (this.showThemeDialog) {
+        this.ThemeSelectDialog()
+      }
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private ThemeSelectDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor($r('app.color.overlay'))
+        .onClick(() => { this.showThemeDialog = false })
+
+      Column({ space: 0 }) {
+        Text('外观设置')
+          .fontSize(Constants.FONT_SIZE_TITLE)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+          .width('100%')
+          .padding({ left: 20, right: 20, top: 20, bottom: 16 })
+
+        this.ThemeOption('跟随系统', -1)
+        this.ThemeOption('浅色模式', 1)
+        this.ThemeOption('深色模式', 0)
+
+        Button('取消', { type: ButtonType.Normal, stateEffect: true })
+          .width('100%')
+          .height(44)
+          .fontColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.card'))
+          .margin({ top: 12, left: 20, right: 20, bottom: 20 })
+          .onClick(() => { this.showThemeDialog = false })
+      }
+      .width('100%')
+      .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
+      .backgroundColor($r('app.color.card'))
+      .borderRadius(Constants.RADIUS_CARD)
+      .shadow(Constants.SHADOW_CARD)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  ThemeOption(label: string, mode: number) {
+    Row() {
+      Text(label)
+        .fontSize(Constants.FONT_SIZE_SUBTITLE)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+      if (this.currentColorMode === mode) {
+        SymbolGlyph($r('sys.symbol.checkmark'))
+          .fontSize(Constants.SIZE_ICON_SMALL)
+          .fontColor([$r('app.color.primary')])
+      }
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 16, bottom: 16 })
+    .onClick(() => { this.selectTheme(mode) })
   }
 
   @Builder
@@ -173,6 +244,22 @@ export struct SettingsPage {
         onItemClick()
       }
     })
+  }
+
+  private getThemeLabel(): string {
+    if (this.currentColorMode === 1) {
+      return '浅色模式'
+    }
+    if (this.currentColorMode === 0) {
+      return '深色模式'
+    }
+    return '跟随系统'
+  }
+
+  private selectTheme(mode: number): void {
+    this.showThemeDialog = false
+    this.currentColorMode = mode
+    setAppColorMode(mode)
   }
 
   private openAccountManagement(): void {
