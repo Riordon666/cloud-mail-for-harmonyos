@@ -2,6 +2,7 @@
 import { ApiException } from '../common/HttpClient'
 import { MailDetailParams, MailItem } from '../common/MailModels'
 import { MailService } from '../common/MailService'
+import { MailListDataSource } from '../common/MailListDataSource'
 import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
 import { EmptyState } from '../components/EmptyState'
@@ -9,6 +10,7 @@ import { EmptyState } from '../components/EmptyState'
 @Component
 export struct StarredPage {
   private scroller: Scroller = new Scroller()
+  private dataSource: MailListDataSource = new MailListDataSource()
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   private toast: PromptAction = this.getUIContext().getPromptAction()
   @State starList: MailItem[] = []
@@ -22,6 +24,7 @@ export struct StarredPage {
     this.isLoading = true
     try {
       this.starList = await MailService.loadStarred()
+      this.dataSource.setData(this.starList)
     } catch (err) {
       this.showRequestError(err)
     } finally {
@@ -44,6 +47,7 @@ export struct StarredPage {
         }
       }
       this.starList = result
+      this.dataSource.removeItem(id)
       this.showToast('已取消星标')
     } catch (err) {
       this.showRequestError(err)
@@ -78,7 +82,7 @@ export struct StarredPage {
         EmptyState({ icon: $r('sys.symbol.star'), message: '暂无星标邮件' })
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.starList, (item: MailItem, index: number) => {
+          LazyForEach(this.dataSource, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
                 name: item.name,

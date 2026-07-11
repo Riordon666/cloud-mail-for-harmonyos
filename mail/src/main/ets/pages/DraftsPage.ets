@@ -1,11 +1,13 @@
 ﻿import Constants from '../common/Constants'
 import { DraftService, MailDraft } from '../common/DraftService'
+import { DraftListDataSource } from '../common/DraftListDataSource'
 import { EmptyState } from '../components/EmptyState'
 import { ComposeParams } from './ComposePage'
 
 @Component
 export struct DraftsPage {
   private scroller: Scroller = new Scroller()
+  private dataSource: DraftListDataSource = new DraftListDataSource()
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   @StorageLink('draftRevision') @Watch('onDraftRevision') draftRevision: number = 0
   @State draftList: MailDraft[] = []
@@ -20,10 +22,12 @@ export struct DraftsPage {
 
   private refreshDrafts(): void {
     this.draftList = DraftService.getDrafts()
+    this.dataSource.setData(this.draftList)
   }
 
   private deleteDraft(id: number): void {
     DraftService.deleteDraft(id)
+    this.dataSource.removeItem(id)
   }
 
   private editDraft(item: MailDraft): void {
@@ -45,7 +49,7 @@ export struct DraftsPage {
         EmptyState({ icon: $r('sys.symbol.doc'), message: '暂无草稿' })
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.draftList, (item: MailDraft) => {
+          LazyForEach(this.dataSource, (item: MailDraft) => {
             ListItem() {
               Row() {
                 Column() {

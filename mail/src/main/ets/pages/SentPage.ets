@@ -2,6 +2,7 @@
 import { ApiException } from '../common/HttpClient'
 import { MailDetailParams, MailItem } from '../common/MailModels'
 import { MailService } from '../common/MailService'
+import { MailListDataSource } from '../common/MailListDataSource'
 import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
 import { EmptyState } from '../components/EmptyState'
@@ -9,6 +10,7 @@ import { EmptyState } from '../components/EmptyState'
 @Component
 export struct SentPage {
   private scroller: Scroller = new Scroller()
+  private dataSource: MailListDataSource = new MailListDataSource()
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   private toast: PromptAction = this.getUIContext().getPromptAction()
   @State sentList: MailItem[] = []
@@ -22,6 +24,7 @@ export struct SentPage {
     this.isLoading = true
     try {
       this.sentList = await MailService.loadSent()
+      this.dataSource.setData(this.sentList)
     } catch (err) {
       this.showRequestError(err)
     } finally {
@@ -58,7 +61,7 @@ export struct SentPage {
         EmptyState({ icon: $r('sys.symbol.paperplane'), message: '暂无已发送邮件' })
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.sentList, (item: MailItem, index: number) => {
+          LazyForEach(this.dataSource, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
                 name: item.name,

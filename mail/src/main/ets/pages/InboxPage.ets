@@ -2,6 +2,7 @@
 import { ApiException } from '../common/HttpClient'
 import { MailDetailParams, MailItem } from '../common/MailModels'
 import { MailService } from '../common/MailService'
+import { MailListDataSource } from '../common/MailListDataSource'
 import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
 
@@ -9,6 +10,7 @@ import { EmailCard } from '../components/EmailCard'
 export struct InboxPage {
   private scroller: Scroller = new Scroller()
   private searchController: SearchController = new SearchController()
+  private dataSource: MailListDataSource = new MailListDataSource()
   @State searchText: string = ''
   @State isSearchFocused: boolean = false
   @State emailList: MailItem[] = []
@@ -25,6 +27,7 @@ export struct InboxPage {
     this.isLoading = true
     try {
       this.emailList = await MailService.loadInbox()
+      this.dataSource.setData(this.emailList)
     } catch (err) {
       this.showRequestError(err)
     } finally {
@@ -72,6 +75,7 @@ export struct InboxPage {
         }
       }
       this.emailList = result
+      this.dataSource.removeItem(id)
       this.showToast('邮件已删除')
     } catch (err) {
       this.showRequestError(err)
@@ -186,7 +190,7 @@ export struct InboxPage {
         .justifyContent(FlexAlign.Center)
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.getFiltered(), (item: MailItem, index: number) => {
+          LazyForEach(this.dataSource, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
                 name: item.name,
