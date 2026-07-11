@@ -1,4 +1,4 @@
-﻿﻿import { PromptAction } from '@kit.ArkUI'
+﻿import { PromptAction } from '@kit.ArkUI'
 import { ConfigurationConstant } from '@kit.AbilityKit'
 import Constants from '../common/Constants'
 import { AvatarBar } from '../components/AvatarBar'
