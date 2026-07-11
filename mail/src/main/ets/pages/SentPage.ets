@@ -1,69 +1,46 @@
 ﻿import Constants from '../common/Constants'
-import { EmailMock } from '../common/MockData'
+import { ApiException } from '../common/HttpClient'
+import { MailDetailParams, MailItem } from '../common/MailModels'
+import { MailService } from '../common/MailService'
+import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
 import { EmptyState } from '../components/EmptyState'
-
-class DetailParams {
-  emailData: EmailMock
-  emailList: EmailMock[]
-  currentIndex: number
-  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
-    this.emailData = emailData
-    this.emailList = emailList
-    this.currentIndex = currentIndex
-  }
-}
-
-interface SentEmailItem {
-  emailData: EmailMock
-  status: string
-}
 
 @Component
 export struct SentPage {
   private scroller: Scroller = new Scroller()
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
-  private sentList: SentEmailItem[] = [
-    {
-      emailData: {
-        id: 100, name: 'Re: 项目进展', email: 'admin@riordon.xyz',
-        subject: 'Re: 项目进展',
-        body: '好的，第一阶段的交付物已经准备好了，请查收附件。第二阶段需要额外的人力资源，我已经提交了申请。',
-        time: '昨天', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
-      },
-      status: '已发送'
-    },
-    {
-      emailData: {
-        id: 101, name: 'Re: Q4 设计稿', email: 'admin@riordon.xyz',
-        subject: 'Re: Q4 设计稿评审通知',
-        body: '收到，我会在周五之前反馈修改意见。',
-        time: '周一', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
-      },
-      status: '已发送'
-    },
-    {
-      emailData: {
-        id: 102, name: 'Re: 周报', email: 'admin@riordon.xyz',
-        subject: 'Re: 本周工作总结',
-        body: '本周完成了邮件模块的前端重构，下周开始后端API对接。',
-        time: '周日', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
-      },
-      status: '已发送'
-    }
-  ]
+  private toast: PromptAction = this.getUIContext().getPromptAction()
+  @State sentList: MailItem[] = []
+  @State isLoading: boolean = false
 
-  private getSentEmails(): EmailMock[] {
-    const emails: EmailMock[] = []
-    for (let i = 0; i < this.sentList.length; i++) {
-      emails.push(this.sentList[i].emailData)
-    }
-    return emails
+  aboutToAppear(): void {
+    this.loadSentEmails()
   }
 
-  private openDetail(item: SentEmailItem, index: number): void {
-    const params: DetailParams = new DetailParams(item.emailData, this.getSentEmails(), index)
+  private async loadSentEmails(): Promise<void> {
+    this.isLoading = true
+    try {
+      this.sentList = await MailService.loadSent()
+    } catch (err) {
+      this.showRequestError(err)
+    } finally {
+      this.isLoading = false
+    }
+  }
+
+  private openDetail(item: MailItem, index: number): void {
+    const params: MailDetailParams = new MailDetailParams(item, this.sentList, index)
     this.pathStack.pushPathByName('DetailPage', params)
+  }
+
+  private showRequestError(err: Error): void {
+    const message: string = err instanceof ApiException ? err.message : '请求失败，请稍后重试'
+    try {
+      this.toast.openToast({ message: message, duration: 1500 })
+    } catch (toastErr) {
+      console.error('openToast failed')
+    }
   }
 
   build() {
@@ -75,22 +52,27 @@ export struct SentPage {
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
         .width('100%')
 
-      if (this.sentList.length === 0) {
+      if (this.isLoading) {
+        EmptyState({ icon: $r('sys.symbol.paperplane'), message: '正在加载邮件…' })
+      } else if (this.sentList.length === 0) {
         EmptyState({ icon: $r('sys.symbol.paperplane'), message: '暂无已发送邮件' })
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.sentList, (item: SentEmailItem, index: number) => {
+          ForEach(this.sentList, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
-                name: item.emailData.name,
-                subject: item.emailData.subject,
-                time: item.emailData.time,
-                unread: item.emailData.unread,
-                status: item.status,
+                name: item.name,
+                subject: item.subject,
+                time: item.time,
+                unread: false,
+                status: '已发送',
                 onCardClick: () => { this.openDetail(item, index) }
               })
             }
-          }, (item: SentEmailItem): string => item.emailData.id.toString())
+          }, (item: MailItem): string => item.id.toString())
+          ListItem() {
+            Column().height(Constants.PADDING_TAB_CONTENT_BOTTOM)
+          }
         }
         .width('100%')
         .layoutWeight(1)

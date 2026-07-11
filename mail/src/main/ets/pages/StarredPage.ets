@@ -1,49 +1,58 @@
 ﻿import Constants from '../common/Constants'
-import { MOCK_EMAILS, EmailMock, getStarredIds, toggleEmailStar } from '../common/MockData'
+import { ApiException } from '../common/HttpClient'
+import { MailDetailParams, MailItem } from '../common/MailModels'
+import { MailService } from '../common/MailService'
 import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
 import { EmptyState } from '../components/EmptyState'
 
-class DetailParams {
-  emailData: EmailMock
-  emailList: EmailMock[]
-  currentIndex: number
-  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
-    this.emailData = emailData
-    this.emailList = emailList
-    this.currentIndex = currentIndex
-  }
-}
-
 @Component
 export struct StarredPage {
   private scroller: Scroller = new Scroller()
-  @StorageLink('starredIds') @Watch('onStarredChange') starredIds: number[] = []
-  @State starList: EmailMock[] = []
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   private toast: PromptAction = this.getUIContext().getPromptAction()
+  @State starList: MailItem[] = []
+  @State isLoading: boolean = false
 
   aboutToAppear(): void {
-    this.buildStarList()
+    this.loadStarredEmails()
   }
 
-  private onStarredChange(): void {
-    this.buildStarList()
-  }
-
-  private buildStarList(): void {
-    const ids: number[] = getStarredIds()
-    const result: EmailMock[] = []
-    for (let i = 0; i < ids.length; i++) {
-      const found: EmailMock | undefined = MOCK_EMAILS.find((e: EmailMock) => e.id === ids[i])
-      if (found !== undefined) { result.push(found) }
+  private async loadStarredEmails(): Promise<void> {
+    this.isLoading = true
+    try {
+      this.starList = await MailService.loadStarred()
+    } catch (err) {
+      this.showRequestError(err)
+    } finally {
+      this.isLoading = false
     }
-    this.starList = result
   }
 
-  private openDetail(item: EmailMock, index: number): void {
-    const params: DetailParams = new DetailParams(item, this.starList, index)
+  private openDetail(item: MailItem, index: number): void {
+    const params: MailDetailParams = new MailDetailParams(item, this.starList, index)
     this.pathStack.pushPathByName('DetailPage', params)
+  }
+
+  private async cancelStar(id: number): Promise<void> {
+    try {
+      await MailService.setStar(id, false)
+      const result: MailItem[] = []
+      for (let index = 0; index < this.starList.length; index++) {
+        if (this.starList[index].id !== id) {
+          result.push(this.starList[index])
+        }
+      }
+      this.starList = result
+      this.showToast('已取消星标')
+    } catch (err) {
+      this.showRequestError(err)
+    }
+  }
+
+  private showRequestError(err: Error): void {
+    const message: string = err instanceof ApiException ? err.message : '请求失败，请稍后重试'
+    this.showToast(message)
   }
 
   private showToast(message: string): void {
@@ -63,11 +72,13 @@ export struct StarredPage {
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
         .width('100%')
 
-      if (this.starList.length === 0) {
+      if (this.isLoading) {
+        EmptyState({ icon: $r('sys.symbol.star'), message: '正在加载邮件…' })
+      } else if (this.starList.length === 0) {
         EmptyState({ icon: $r('sys.symbol.star'), message: '暂无星标邮件' })
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.starList, (item: EmailMock, index: number) => {
+          ForEach(this.starList, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
                 name: item.name,
@@ -84,7 +95,10 @@ export struct StarredPage {
               },
               edgeEffect: SwipeEdgeEffect.Spring
             })
-          }, (item: EmailMock): string => item.id.toString())
+          }, (item: MailItem): string => item.id.toString())
+          ListItem() {
+            Column().height(Constants.PADDING_TAB_CONTENT_BOTTOM)
+          }
         }
         .width('100%')
         .layoutWeight(1)
@@ -114,10 +128,7 @@ export struct StarredPage {
       .width(80)
       .height('100%')
       .backgroundColor($r('app.color.warning'))
-      .onClick(() => {
-        toggleEmailStar(id)
-        this.showToast('已取消星标')
-      })
+      .onClick(() => { this.cancelStar(id) })
     }
     .height('100%')
   }

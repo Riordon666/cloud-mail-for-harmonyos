@@ -1,5 +1,6 @@
 ﻿export default class Constants {
-  static readonly API_URL: string = "https://riordon.xyz/api"
+  static readonly API_URL: string = 'https://mail.riordon.xyz/api'
+  static readonly MAIL_DOMAIN: string = '@riordon.xyz'
 
   // ===== 圆角 =====
   static readonly RADIUS_CARD: number = 15
@@ -23,6 +24,7 @@
   static readonly PADDING_EDGE: number = 16
   static readonly PADDING_INNER: number = 10
   static readonly PADDING_CARD: number = 12
+  static readonly PADDING_TAB_CONTENT_BOTTOM: number = 56
   static readonly GAP_SMALL: number = 8
   static readonly GAP_MEDIUM: number = 12
 

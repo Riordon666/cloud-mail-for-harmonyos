@@ -1,33 +1,20 @@
 ﻿import Constants from "../common/Constants"
-import { MOCK_EMAILS, EmailMock, isEmailStarred, toggleEmailStar } from "../common/MockData"
+import { ApiException } from '../common/HttpClient'
+import { MailDetailParams, MailItem } from '../common/MailModels'
+import { MailService } from '../common/MailService'
+import { ComposeParams } from './ComposePage'
 import { DividerModifier, LengthMetrics, PromptAction, SymbolGlyphModifier, ToolBar, ToolBarModifier, ToolBarOptions } from "@kit.ArkUI"
+import { http } from '@kit.NetworkKit'
+import { fileIo, picker } from '@kit.CoreFileKit'
 import { HdsNavDestination, HdsNavDestinationAttribute, ScrollEffectType, hdsMaterial, HdsNavDestinationTitleMode } from "@kit.UIDesignKit"
-
-class DetailParams {
-  emailData: EmailMock
-  emailList: EmailMock[]
-  currentIndex: number
-
-  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
-    this.emailData = emailData
-    this.emailList = emailList
-    this.currentIndex = currentIndex
-  }
-}
 
 @Component
 export struct DetailPageContent {
   private scroller: Scroller = new Scroller()
-  @Prop emailData: DetailParams = new DetailParams({
-    id: 0, name: "", email: "", subject: "", body: "", time: "",
-    unread: false, cc: [], bcc: [], attList: [], htmlContent: ""
-  }, [], 0)
+  @Prop emailData: MailDetailParams = new MailDetailParams(new MailItem(), [], 0)
   private pathStack: NavPathStack | null = null
-  @State email: EmailMock = {
-    id: 0, name: "", email: "", subject: "", body: "", time: "",
-    unread: false, cc: [], bcc: [], attList: [], htmlContent: ""
-  }
-  @State emailList: EmailMock[] = []
+  @State email: MailItem = new MailItem()
+  @State emailList: MailItem[] = []
   @State currentIndex: number = 0
   @State showDetail: boolean = false
   @State showCcBcc: boolean = false
@@ -42,11 +29,11 @@ export struct DetailPageContent {
 
   aboutToAppear(): void {
     this.pathStack = AppStorage.get("appPathStack") as NavPathStack
-    if (this.emailData?.emailData !== undefined) {
+    if (this.emailData.emailData !== undefined) {
       this.email = this.emailData.emailData
       this.emailList = this.emailData.emailList.slice()
       this.currentIndex = this.emailData.currentIndex
-      this.isStarred = isEmailStarred(this.email.id)
+      this.isStarred = this.email.starred
     }
     this.refreshToolbar()
   }
@@ -100,7 +87,7 @@ export struct DetailPageContent {
 
           if (!this.showDetail) {
             Row() {
-              Text(this.email.name).fontSize(14).fontColor("#34C759").maxLines(1)
+              Text(this.email.name).fontSize(14).fontColor($r('app.color.success')).maxLines(1)
               Blank()
               Text("详情").fontSize(14).fontColor($r("app.color.primary")).onClick(() => { this.showDetail = true })
             }
@@ -123,18 +110,18 @@ export struct DetailPageContent {
 
               Row() {
                 Text("收件人：").fontSize(14).fontColor($r("app.color.text_secondary"))
-                Text("admin").fontSize(14).fontColor($r("app.color.text_primary"))
+                Text(this.email.toEmail === '' ? '当前账户' : this.email.toEmail).fontSize(14).fontColor($r("app.color.text_primary"))
               }
               .width("100%").padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE }).margin({ top: 6 })
 
               Row() {
                 Blank().width(56)
-                Text("admin@riordon.xyz").fontSize(13).fontColor($r("app.color.text_secondary"))
+                Text(this.email.toEmail === '' ? this.email.email : this.email.toEmail).fontSize(13).fontColor($r("app.color.text_secondary"))
               }
               .width("100%").padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE }).margin({ top: 2 })
 
               Row() {
-                Text("    时间：2025年6月29日 10:32").fontSize(14).fontColor($r("app.color.text_secondary"))
+                Text('    时间：' + this.email.time).fontSize(14).fontColor($r("app.color.text_secondary"))
               }
               .width("100%").padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE }).margin({ top: 6 })
             }
@@ -146,7 +133,7 @@ export struct DetailPageContent {
           Text(this.email.body).fontSize(15).fontColor($r("app.color.text_primary")).lineHeight(24)
             .width("100%").padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 12, bottom: 12 })
 
-          ForEach(this.email.attList, (att: string) => {
+          ForEach(this.email.attList, (att: string, index: number) => {
             Row() {
               SymbolGlyph($r("sys.symbol.doc")).fontSize(24).fontColor([$r("app.color.primary")])
               Column() {
@@ -157,6 +144,7 @@ export struct DetailPageContent {
             }
             .width("100%").padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 14, bottom: 14 })
             .backgroundColor($r("app.color.card")).borderRadius(10).margin({ top: 4, bottom: 4 })
+            .onClick(() => { this.downloadAttachment(index, att) })
           })
 
           Blank().height(88)
@@ -227,7 +215,7 @@ export struct DetailPageContent {
       this.currentIndex--
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
-      this.isStarred = isEmailStarred(this.email.id)
+      this.isStarred = this.email.starred
       this.refreshToolbar()
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     }
@@ -238,33 +226,49 @@ export struct DetailPageContent {
       this.currentIndex++
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
-      this.isStarred = isEmailStarred(this.email.id)
+      this.isStarred = this.email.starred
       this.refreshToolbar()
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     }
   }
 
-  private deleteEmail(): void {
-    this.emailList.splice(this.currentIndex, 1)
-    if (this.emailList.length === 0) {
-      if (this.pathStack !== null) { this.pathStack.pop() }
-      return
+  private async deleteEmail(): Promise<void> {
+    try {
+      await MailService.delete(this.email.id)
+      this.emailList.splice(this.currentIndex, 1)
+      if (this.emailList.length === 0) {
+        if (this.pathStack !== null) { this.pathStack.pop() }
+        return
+      }
+      if (this.currentIndex >= this.emailList.length) {
+        this.currentIndex = this.emailList.length - 1
+      }
+      this.email = this.emailList[this.currentIndex]
+      this.showDetail = false
+      this.isStarred = this.email.starred
+      this.refreshToolbar()
+      this.showToast('邮件已删除')
+    } catch (err) {
+      this.showRequestError(err)
     }
-    if (this.currentIndex >= this.emailList.length) {
-      this.currentIndex = this.emailList.length - 1
-    }
-    this.email = this.emailList[this.currentIndex]
-    this.showDetail = false
-    this.isStarred = isEmailStarred(this.email.id)
-    this.refreshToolbar()
   }
 
   private replyEmail(): void {
-    this.showToast("回复功能开发中")
+    if (this.pathStack === null) {
+      return
+    }
+    const prefix: string = this.email.subject.indexOf('Re:') === 0 ? '' : 'Re: '
+    const params: ComposeParams = new ComposeParams(this.email.email, '', '', prefix + this.email.subject, '', 'reply', this.email.id)
+    this.pathStack.pushPathByName('ComposePage', params)
   }
 
   private forwardEmail(): void {
-    this.showToast("转发功能开发中")
+    if (this.pathStack === null) {
+      return
+    }
+    const prefix: string = this.email.subject.indexOf('Fwd:') === 0 ? '' : 'Fwd: '
+    const params: ComposeParams = new ComposeParams('', '', '', prefix + this.email.subject, this.email.body, 'forward', this.email.id)
+    this.pathStack.pushPathByName('ComposePage', params)
   }
 
   private showToast(message: string): void {
@@ -275,9 +279,73 @@ export struct DetailPageContent {
     }
   }
 
-  private toggleStar(): void {
-    toggleEmailStar(this.email.id)
-    this.isStarred = isEmailStarred(this.email.id)
-    this.refreshToolbar()
+  private async toggleStar(): Promise<void> {
+    const nextStarred: boolean = !this.isStarred
+    try {
+      await MailService.setStar(this.email.id, nextStarred)
+      const nextEmail: MailItem = this.email.copy()
+      nextEmail.starred = nextStarred
+      this.email = nextEmail
+      this.isStarred = nextStarred
+      this.refreshToolbar()
+      this.showToast(nextStarred ? '已加入星标' : '已取消星标')
+    } catch (err) {
+      this.showRequestError(err)
+    }
+  }
+
+  private showRequestError(err: Error): void {
+    if (err instanceof ApiException) {
+      this.showToast(err.message)
+      return
+    }
+    this.showToast('请求失败，请稍后重试')
+  }
+
+  private async downloadAttachment(index: number, filename: string): Promise<void> {
+    if (index >= this.email.attachmentKeys.length || this.email.attachmentKeys[index] === '') {
+      this.showToast('附件地址无效')
+      return
+    }
+    const request: http.HttpRequest = http.createHttp()
+    try {
+      const response: http.HttpResponse = await request.request(this.getAttachmentUrl(this.email.attachmentKeys[index]), {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        usingCache: false,
+        connectTimeout: 10000,
+        readTimeout: 30000
+      })
+      if (response.responseCode < 200 || response.responseCode >= 300) {
+        this.showToast('下载附件失败')
+        return
+      }
+      const content: ArrayBuffer = response.result as ArrayBuffer
+      const context: Context = this.getUIContext().getHostContext() as Context
+      const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions()
+      options.newFileNames = [filename]
+      const documentPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(context)
+      const destinations: string[] = await documentPicker.save(options)
+      if (destinations.length === 0) {
+        return
+      }
+      const file: fileIo.File = fileIo.openSync(destinations[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      try {
+        fileIo.writeSync(file.fd, content)
+      } finally {
+        fileIo.closeSync(file)
+      }
+      this.showToast('附件已保存')
+    } catch (err) {
+      this.showToast('下载附件失败，请重试')
+    } finally {
+      request.destroy()
+    }
+  }
+
+  private getAttachmentUrl(key: string): string {
+    const apiIndex: number = Constants.API_URL.lastIndexOf('/api')
+    const host: string = apiIndex > 0 ? Constants.API_URL.substring(0, apiIndex) : Constants.API_URL
+    return host + '/oss/' + key
   }
 }

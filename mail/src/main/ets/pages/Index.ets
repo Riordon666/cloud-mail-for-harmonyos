@@ -1,5 +1,5 @@
 ﻿import { hdsMaterial, HdsTabs, HdsTabsController } from "@kit.UIDesignKit"
-import { HdsNavigation, HdsNavigationAttribute } from "@kit.UIDesignKit"
+import { HdsNavigation } from "@kit.UIDesignKit"
 import { SymbolGlyphModifier } from "@kit.ArkUI"
 import { motion } from "@kit.MultimodalAwarenessKit"
 
@@ -10,30 +10,46 @@ import { StarredPage } from "./StarredPage"
 import { SettingsPage } from "./SettingsPage"
 import { DetailPageContent } from "./DetailPage"
 import { ComposePageContent, ComposeParams } from "./ComposePage"
-import { EmailMock } from "../common/MockData"
-
-class DetailParams {
-  emailData: EmailMock
-  emailList: EmailMock[]
-  currentIndex: number
-
-  constructor(emailData: EmailMock, emailList: EmailMock[], currentIndex: number) {
-    this.emailData = emailData
-    this.emailList = emailList
-    this.currentIndex = currentIndex
-  }
-}
+import { MailDetailParams } from '../common/MailModels'
+import { AuthService } from "../common/AuthService"
+import { AuthPage } from "./AuthPage"
+import { AccountsPage } from "./AccountsPage"
+import { SystemSettingsPage } from "./SystemSettingsPage"
+import { UserManagementPage } from "./UserManagementPage"
+import { GlobalMailPage } from "./GlobalMailPage"
+import { RoleManagementPage } from "./RoleManagementPage"
+import { AnalyticsPage } from "./AnalyticsPage"
+import { RegistrationCodePage } from "./RegistrationCodePage"
 
 @Entry
 @Component
 struct Index {
   @State currentTab: number = 0
   @State isLeftHand: boolean = false
+  @StorageLink('authToken') authToken: string = ''
   private tabController: HdsTabsController = new HdsTabsController()
   private pathStack: NavPathStack = new NavPathStack()
+  private isHomePrepared: boolean = false
 
   aboutToAppear(): void {
     AppStorage.setOrCreate("appPathStack", this.pathStack)
+    if (this.authToken !== '') {
+      this.restoreSession()
+    }
+  }
+
+  private async restoreSession(): Promise<void> {
+    const result = await AuthService.refreshSession()
+    if (result.success && this.authToken !== '') {
+      this.prepareHome()
+    }
+  }
+
+  private prepareHome(): void {
+    if (this.isHomePrepared) {
+      return
+    }
+    this.isHomePrepared = true
     try {
       this.tabController.preloadItems([0, 1, 2, 3, 4])
       motion.on("holdingHandChanged", (status: motion.HoldingHandStatus) => {
@@ -47,7 +63,15 @@ struct Index {
   }
 
   build() {
-    HdsNavigation(this.pathStack) {
+    if (this.authToken === '') {
+      AuthPage({
+        onAuthenticated: () => {
+          this.currentTab = 0
+          this.prepareHome()
+        }
+      })
+    } else {
+      HdsNavigation(this.pathStack) {
       Stack({ alignContent: this.isLeftHand ? Alignment.BottomStart : Alignment.BottomEnd }) {
         HdsTabs({ controller: this.tabController, index: this.currentTab }) {
           TabContent() { InboxPage() }
@@ -90,7 +114,18 @@ struct Index {
                 .fontColor([$r("app.color.primary")])
             }, "星标邮件"))
 
-          TabContent() { SettingsPage() }
+          TabContent() {
+            SettingsPage({
+              onLogout: () => { this.logout() },
+              onManageAccounts: () => { this.pathStack.pushPathByName('AccountsPage', undefined) },
+              onSystemSettings: () => { this.pathStack.pushPathByName('SystemSettingsPage', undefined) },
+              onManageUsers: () => { this.pathStack.pushPathByName('UserManagementPage', undefined) },
+              onManageGlobalMails: () => { this.pathStack.pushPathByName('GlobalMailPage', undefined) },
+              onManageRoles: () => { this.pathStack.pushPathByName('RoleManagementPage', undefined) },
+              onOpenAnalytics: () => { this.pathStack.pushPathByName('AnalyticsPage', undefined) },
+              onManageRegistrationCodes: () => { this.pathStack.pushPathByName('RegistrationCodePage', undefined) }
+            })
+          }
             .tabBar(new BottomTabBarStyle({
               normal: new SymbolGlyphModifier($r("sys.symbol.person"))
                 .renderingStrategy(SymbolRenderingStrategy.SINGLE)
@@ -144,19 +179,39 @@ struct Index {
     .hideToolBar(true)
     .width("100%")
     .height("100%")
-    .backgroundColor($r("app.color.background"))
+      .backgroundColor($r("app.color.background"))
+    }
+  }
+
+  private logout(): void {
+    AuthService.logout()
+    this.currentTab = 0
   }
 
   @Builder
   navDestinationBuilder(name: string, param: Object) {
     if (name === "DetailPage") {
-      DetailPageContent({ emailData: param as DetailParams })
+      DetailPageContent({ emailData: param as MailDetailParams })
     } else if (name === "ComposePage") {
       if (param instanceof ComposeParams) {
         ComposePageContent({ composeParams: param })
       } else {
         ComposePageContent()
       }
+    } else if (name === 'AccountsPage') {
+      AccountsPage()
+    } else if (name === 'SystemSettingsPage') {
+      SystemSettingsPage()
+    } else if (name === 'UserManagementPage') {
+      UserManagementPage()
+    } else if (name === 'GlobalMailPage') {
+      GlobalMailPage()
+    } else if (name === 'RoleManagementPage') {
+      RoleManagementPage()
+    } else if (name === 'AnalyticsPage') {
+      AnalyticsPage()
+    } else if (name === 'RegistrationCodePage') {
+      RegistrationCodePage()
     }
   }
 }
