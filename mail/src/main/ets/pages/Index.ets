@@ -20,6 +20,8 @@ import { GlobalMailPage } from "./GlobalMailPage"
 import { RoleManagementPage } from "./RoleManagementPage"
 import { AnalyticsPage } from "./AnalyticsPage"
 import { RegistrationCodePage } from "./RegistrationCodePage"
+import { NotFoundPage } from "./NotFoundPage"
+import Constants from "../common/Constants"
 
 @Entry
 @Component
@@ -27,6 +29,7 @@ struct Index {
   @State currentTab: number = 0
   @State isLeftHand: boolean = false
   @StorageLink('authToken') authToken: string = ''
+  @StorageProp('currentBreakpoint') currentBreakpoint: string = 'sm'
   private tabController: HdsTabsController = new HdsTabsController()
   private pathStack: NavPathStack = new NavPathStack()
   private isHomePrepared: boolean = false
@@ -212,6 +215,8 @@ struct Index {
       AnalyticsPage()
     } else if (name === 'RegistrationCodePage') {
       RegistrationCodePage()
+    } else {
+      NotFoundPage()
     }
   }
 }
