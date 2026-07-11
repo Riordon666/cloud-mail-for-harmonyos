@@ -1,8 +1,9 @@
-﻿<img src="https://readme-typing-svg.vercel.app/?lines=%E2%9C%A8Riordon666%E2%9C%A8;%E2%9C%89%EF%B8%8FCloud%20Mail%20for%20HarmonyOS%E2%9C%89%EF%B8%8F;%E2%9A%A1Made%20with%20ArkTS%E2%9A%A1&font=Fira%20Code&center=true&width=540&height=50&duration=4000&pause=1000&color=00D9FF&vCenter=true&size=28">
+﻿<div align="center">
+<img src="https://readme-typing-svg.vercel.app/?lines=%E2%9C%A8Riordon666%E2%9C%A8;%E2%9C%89%EF%B8%8FCloud%20Mail%20for%20HarmonyOS%E2%9C%89%EF%B8%8F;%E2%9A%A1Made%20with%20ArkTS%E2%9A%A1&font=Fira%20Code&center=true&width=540&height=50&duration=4000&pause=1000&color=00D9FF&vCenter=true&size=28">
 
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Cloud%20Mail%20for%20HarmonyOS&fontSize=50&fontAlignY=35&animation=twinkling&fontColor=fff" />
-<div align="center">
+
 <h1 align="center">✉️Cloud Mail for HarmonyOS <sup><small>v0.1</small></sup></h1>
 
 **鸿蒙原生邮件客户端** · 基于 ArkUI + ArkTS 从零构建
