@@ -2,6 +2,8 @@
   "color": [
     { "name": "background", "value": "#0D0D0D" },
     { "name": "card", "value": "#1A1A1A" },
+    { "name": "auth_gradient_start", "value": "#0F1A2E" },
+    { "name": "auth_gradient_end", "value": "#0D0D0D" },
     { "name": "primary", "value": "#5B9AF9" },
     { "name": "primary_light", "value": "#317AF7" },
     { "name": "primary_dark", "value": "#1A56DB" },
