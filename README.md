@@ -11,10 +11,10 @@
 为 HarmonyOS 打造的沉浸式邮件体验，采用 HDS 设计语言，深度适配深色模式与平板断点布局。
 
 ![Platform](https://img.shields.io/badge/Platform-HarmonyOS-0A0A0A?logo=harmonyos&logoColor=white)
-![API](https://img.shields.io/badge/API-23-317AF7)
-![SDK](https://img.shields.io/badge/SDK-6.1.0-5B9AF9)
+![API](https://img.shields.io/badge/API-23+-317AF7)
+![SDK](https://img.shields.io/badge/SDK-6.1.0+-5B9AF9)
 ![License](https://img.shields.io/badge/License-MIT-6BCB77)
-![Status](https://img.shields.io/badge/状态-开发中-yellow)
+![Status](https://img.shields.io/badge/状态-持续开发优化中-yellow)
 
 [功能特性](#-功能特性) · [技术架构](#-技术架构) · [功能全景](#-功能全景) · [快速开始](#-快速开始)
 
@@ -32,8 +32,8 @@
 
 这不是简单的网页套壳，而是基于 **ArkUI 声明式 UI** 与 **ArkTS** 语言、采用华为 **HDS（HarmonyOS Design System）** 组件库从零重写的原生客户端——沉浸式全屏体验、HdsTabs 底部导航、LazyForEach 虚拟滚动、断点式平板适配，一个都不少。
 
-- 🔗 **后端**：Cloudflare Workers · `https://mail.riordon.xyz`
-- 🎯 **目标**：完整的邮件收发、用户体系、管理后台，原生级流畅、正在开发优化中~
+- 🔗 **后端**：Cloudflare Workers · [Riordon's Cloud Mail](https://mail.riordon.xyz) 
+- 🎯 **目标**：完整的邮件收发、用户体系、管理后台，原生级流畅、正在持续开发优化中~
 
 <div align="center">
 
@@ -190,19 +190,6 @@ mail/src/main/ets/
 - 📄 **教程文档**：[点击下载 PDF 教程](https://github.com/Zitann/HarmonyOS-Haps/raw/refs/heads/main/assets/guide.pdf)
 - 🎬 **视频教程**：[B 站观看](https://www.bilibili.com/video/BV1hkZ7YnEMd/)
 
-<div align="center">
-
-<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
-
-</div>
-
-## 📐 开发规范
-
-- `.ets` 文件统一 **UTF-8 with BOM** 编码
-- 颜色通过 **`$r()`** 资源引用，维护浅色与深色双主题
-- 页面水平边距统一使用 **`Constants.PADDING_EDGE`**（16vp）
-- **API 23 限制**：禁用模板字符串、`any`/`unknown`、`getContext()`、`uiMaterial`
-- 提交信息格式：`type(scope): 中文描述 — 英文关键词`
 
 <div align="center">
 
