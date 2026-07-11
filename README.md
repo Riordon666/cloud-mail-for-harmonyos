@@ -1,6 +1,9 @@
-﻿<div align="center">
+﻿<img src="https://readme-typing-svg.vercel.app/?lines=%E2%9C%A8Riordon666%E2%9C%A8;%E2%9C%89%EF%B8%8FCloud%20Mail%20for%20HarmonyOS%E2%9C%89%EF%B8%8F;%E2%9A%A1Made%20with%20ArkTS%E2%9A%A1&font=Fira%20Code&center=true&width=540&height=50&duration=4000&pause=1000&color=00D9FF&vCenter=true&size=28">
 
-# ✉️ Cloud Mail for HarmonyOS
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Cloud%20Mail%20for%20HarmonyOS&fontSize=50&fontAlignY=35&animation=twinkling&fontColor=fff" />
+<div align="center">
+<h1 align="center">✉️Cloud Mail for HarmonyOS <sup><small>v0.1</small></sup></h1>
 
 **鸿蒙原生邮件客户端** · 基于 ArkUI + ArkTS 从零构建
 
@@ -16,18 +19,26 @@
 
 </div>
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## 📖 项目简介
 
-**Cloud Mail** 是一款将 **[Cloud Mail](https://github.com/maillab/cloud-mail)**（原 Vue 3 + Cloudflare Workers 邮件服务）完整移植为 **HarmonyOS 原生应用** 的邮件客户端。
+**Cloud Mail for HarmonyOS** 是一款将 **[Cloud Mail](https://github.com/maillab/cloud-mail)**（原 Vue 3 + Cloudflare Workers 邮件服务）完整移植为 **HarmonyOS 原生应用** 的邮件客户端。
 
 这不是简单的网页套壳，而是基于 **ArkUI 声明式 UI** 与 **ArkTS** 语言、采用华为 **HDS（HarmonyOS Design System）** 组件库从零重写的原生客户端——沉浸式全屏体验、HdsTabs 底部导航、LazyForEach 虚拟滚动、断点式平板适配，一个都不少。
 
 - 🔗 **后端**：Cloudflare Workers · `https://mail.riordon.xyz`
 - 🎯 **目标**：完整的邮件收发、用户体系、管理后台，原生级流畅、正在开发优化中~
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## ✨ 功能特性
 
@@ -52,7 +63,11 @@
 - **系统启动窗口**：`startWindowIcon` + `startWindowBackground` 无缝启动体验
 - **Push Kit 推送**：基础封装就绪，需 AppGallery Connect 配置后启用
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## 🏗️ 技术架构
 
@@ -93,7 +108,11 @@ mail/src/main/ets/
 └── mailbackupability/   # 备份恢复扩展
 ```
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## 🖼️ 功能全景
 
@@ -124,7 +143,11 @@ mail/src/main/ets/
 | 🔄 备份恢复 | MailBackupAbility 扩展，preferences 数据持久化 |
 | 🚫 404 兜底 | NotFoundPage 未知路由兜底 |
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## 🚀 快速开始
 
@@ -166,7 +189,11 @@ mail/src/main/ets/
 - 📄 **教程文档**：[点击下载 PDF 教程](https://github.com/Zitann/HarmonyOS-Haps/raw/refs/heads/main/assets/guide.pdf)
 - 🎬 **视频教程**：[B 站观看](https://www.bilibili.com/video/BV1hkZ7YnEMd/)
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## 📐 开发规范
 
@@ -176,13 +203,21 @@ mail/src/main/ets/
 - **API 23 限制**：禁用模板字符串、`any`/`unknown`、`getContext()`、`uiMaterial`
 - 提交信息格式：`type(scope): 中文描述 — 英文关键词`
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 ## 📄 License
 
 MIT License · 本项目仅供学习交流
 
----
+<div align="center">
+
+<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%" height="3px" />
+
+</div>
 
 <div align="center">
 
