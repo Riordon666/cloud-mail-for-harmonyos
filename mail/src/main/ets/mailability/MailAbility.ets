@@ -5,6 +5,7 @@ import { AuthService } from '../common/AuthService'
 import { SystemSettingsService } from '../common/SystemSettingsService'
 import { AdminService } from '../common/AdminService'
 import { DraftService } from '../common/DraftService'
+import { PushService } from '../common/PushService'
 
 const PREF_NAME: string = 'cloud_mail_settings'
 
@@ -25,6 +26,7 @@ export default class MailAbility extends UIAbility {
     SystemSettingsService.initialize(this.context)
     DraftService.initialize(this.context)
     AdminService.initialize()
+    PushService.initPush()
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         console.error('loadContent failed: ' + JSON.stringify(err))

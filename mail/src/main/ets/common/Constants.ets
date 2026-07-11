@@ -2,6 +2,12 @@
   static readonly API_URL: string = 'https://mail.riordon.xyz/api'
   static readonly MAIL_DOMAIN: string = '@riordon.xyz'
 
+  // ===== 断点 =====
+  static readonly BREAKPOINT_SM: number = 320
+  static readonly BREAKPOINT_MD: number = 600
+  static readonly BREAKPOINT_LG: number = 840
+  static readonly CONTENT_MAX_WIDTH: number = 720
+
   // ===== 圆角 =====
   static readonly RADIUS_CARD: number = 15
   static readonly RADIUS_BUTTON: number = 18
