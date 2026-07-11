@@ -1,4 +1,4 @@
-// ===== 邮箱 =====
+﻿// ===== 邮箱 =====
 export interface EmailMock {
   id: number
   name: string

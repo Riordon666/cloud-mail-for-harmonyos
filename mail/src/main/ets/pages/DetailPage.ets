@@ -1,8 +1,7 @@
-import Constants from "../common/Constants"
+﻿import Constants from "../common/Constants"
 import { MOCK_EMAILS, EmailMock, isEmailStarred, toggleEmailStar } from "../common/MockData"
-import { SymbolGlyphModifier } from "@kit.ArkUI"
+import { DividerModifier, LengthMetrics, PromptAction, SymbolGlyphModifier, ToolBar, ToolBarModifier, ToolBarOptions } from "@kit.ArkUI"
 import { HdsNavDestination, HdsNavDestinationAttribute, ScrollEffectType, hdsMaterial, HdsNavDestinationTitleMode } from "@kit.UIDesignKit"
-import { promptAction } from "@kit.ArkUI"
 
 class DetailParams {
   emailData: EmailMock
@@ -33,6 +32,13 @@ export struct DetailPageContent {
   @State showDetail: boolean = false
   @State showCcBcc: boolean = false
   @State isStarred: boolean = false
+  private toast: PromptAction = this.getUIContext().getPromptAction()
+  @State toolbarList: ToolBarOptions = new ToolBarOptions()
+  private toolBarModifier: ToolBarModifier = new ToolBarModifier()
+    .height(LengthMetrics.vp(64))
+    .backgroundColor($r("app.color.card"))
+    .stateEffect(true)
+  private dividerModifier: DividerModifier = new DividerModifier().height(0)
 
   aboutToAppear(): void {
     this.pathStack = AppStorage.get("appPathStack") as NavPathStack
@@ -42,6 +48,43 @@ export struct DetailPageContent {
       this.currentIndex = this.emailData.currentIndex
       this.isStarred = isEmailStarred(this.email.id)
     }
+    this.refreshToolbar()
+  }
+
+  private refreshToolbar(): void {
+    this.toolbarList.splice(0, this.toolbarList.length)
+    this.toolbarList.push({
+      content: "回复",
+      action: () => { this.replyEmail() },
+      toolBarSymbolOptions: {
+        normal: new SymbolGlyphModifier($r("sys.symbol.arrowshape_turn_up_left"))
+          .fontColor([$r("app.color.text_primary")])
+      }
+    })
+    this.toolbarList.push({
+      content: "转发",
+      action: () => { this.forwardEmail() },
+      toolBarSymbolOptions: {
+        normal: new SymbolGlyphModifier($r("sys.symbol.arrowshape_turn_up_right"))
+          .fontColor([$r("app.color.text_primary")])
+      }
+    })
+    this.toolbarList.push({
+      content: this.isStarred ? "已星标" : "星标",
+      action: () => { this.toggleStar() },
+      toolBarSymbolOptions: {
+        normal: new SymbolGlyphModifier(this.isStarred ? $r("sys.symbol.star_fill") : $r("sys.symbol.star"))
+          .fontColor(this.isStarred ? [$r("app.color.primary")] : [$r("app.color.text_primary")])
+      }
+    })
+    this.toolbarList.push({
+      content: "删除",
+      action: () => { this.deleteEmail() },
+      toolBarSymbolOptions: {
+        normal: new SymbolGlyphModifier($r("sys.symbol.trash"))
+          .fontColor([$r("app.color.danger")])
+      }
+    })
   }
 
   build() {
@@ -116,6 +159,7 @@ export struct DetailPageContent {
             .backgroundColor($r("app.color.card")).borderRadius(10).margin({ top: 4, bottom: 4 })
           })
 
+          Blank().height(88)
           Blank().layoutWeight(1)
         }
         .width("100%")
@@ -123,32 +167,18 @@ export struct DetailPageContent {
       }
       .width("100%").height("100%").scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
 
-        Row() {
-          Column() {
-            SymbolGlyph($r("sys.symbol.arrowshape_turn_up_left")).fontSize(24).fontColor([$r("app.color.text_primary")])
-            Text("回复").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.replyEmail() })
-
-          Column() {
-            SymbolGlyph($r("sys.symbol.arrowshape_turn_up_right")).fontSize(24).fontColor([$r("app.color.text_primary")])
-            Text("转发").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.forwardEmail() })
-
-          Column() {
-            SymbolGlyph(this.isStarred ? $r("sys.symbol.star_fill") : $r("sys.symbol.star"))
-              .fontSize(24).fontColor(this.isStarred ? [$r("app.color.primary")] : [$r("app.color.text_primary")])
-            Text(this.isStarred ? "已星标" : "星标").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.toggleStar() })
-
-          Column() {
-            SymbolGlyph($r("sys.symbol.trash")).fontSize(24).fontColor([$r("app.color.text_primary")])
-            Text("删除").fontSize(11).fontColor($r("app.color.text_secondary")).margin({ top: 4 })
-          }.layoutWeight(1).alignItems(HorizontalAlign.Center).justifyContent(FlexAlign.Center).onClick(() => { this.deleteEmail() })
+        Column() {
+          ToolBar({
+            toolBarList: this.toolbarList,
+            toolBarModifier: this.toolBarModifier,
+            dividerModifier: this.dividerModifier
+          })
         }
-        .width("100%").padding({ top: 12, bottom: 16 })
+        .width("100%")
         .borderRadius(24)
-        .margin({ left: 16, right: 16, bottom: 16 })
-        .backgroundColor("#CCFFFFFF")
+        .clip(true)
+        .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, bottom: 16 })
+        .shadow(Constants.SHADOW_CARD)
       }
       .width("100%").height("100%")
     }
@@ -197,7 +227,8 @@ export struct DetailPageContent {
       this.currentIndex--
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
-      this.isStarred = false
+      this.isStarred = isEmailStarred(this.email.id)
+      this.refreshToolbar()
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     }
   }
@@ -207,7 +238,8 @@ export struct DetailPageContent {
       this.currentIndex++
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
-      this.isStarred = false
+      this.isStarred = isEmailStarred(this.email.id)
+      this.refreshToolbar()
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     }
   }
@@ -223,19 +255,29 @@ export struct DetailPageContent {
     }
     this.email = this.emailList[this.currentIndex]
     this.showDetail = false
-    this.isStarred = false
+    this.isStarred = isEmailStarred(this.email.id)
+    this.refreshToolbar()
   }
 
   private replyEmail(): void {
-    promptAction.showToast({ message: "回复功能开发中", duration: 2000 })
+    this.showToast("回复功能开发中")
   }
 
   private forwardEmail(): void {
-    promptAction.showToast({ message: "转发功能开发中", duration: 2000 })
+    this.showToast("转发功能开发中")
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.toast.openToast({ message: message, duration: 2000 })
+    } catch (err) {
+      console.error('openToast failed')
+    }
   }
 
   private toggleStar(): void {
     toggleEmailStar(this.email.id)
     this.isStarred = isEmailStarred(this.email.id)
+    this.refreshToolbar()
   }
 }

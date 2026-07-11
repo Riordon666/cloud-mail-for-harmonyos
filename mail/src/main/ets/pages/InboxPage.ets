@@ -1,5 +1,5 @@
-import Constants from "../common/Constants"
-import { promptAction } from '@kit.ArkUI'
+﻿import Constants from "../common/Constants"
+import { PromptAction } from '@kit.ArkUI'
 import { MOCK_EMAILS, EmailMock, toggleEmailStar, isEmailStarred } from "../common/MockData"
 import { EmailCard } from "../components/EmailCard"
 
@@ -20,9 +20,11 @@ export struct InboxPage {
   private scroller: Scroller = new Scroller()
   private searchController: SearchController = new SearchController()
   @State searchText: string = ""
+  @State isSearchFocused: boolean = false
   @State emailList: EmailMock[] = MOCK_EMAILS
   @State refreshKey: number = 0
   private pathStack: NavPathStack = AppStorage.get("appPathStack") as NavPathStack
+  private toast: PromptAction = this.getUIContext().getPromptAction()
 
   aboutToAppear(): void {
     this.emailList = MOCK_EMAILS
@@ -65,7 +67,15 @@ export struct InboxPage {
     }
     this.emailList = arr
     this.refreshKey++
-    promptAction.showToast({ message: isStarred ? '已加入星标' : '已取消星标', duration: 1500 })
+    this.showToast(isStarred ? '已加入星标' : '已取消星标')
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.toast.openToast({ message: message, duration: 1500 })
+    } catch (err) {
+      console.error('openToast failed')
+    }
   }
 
   private deleteEmail(id: number): void {
@@ -106,11 +116,23 @@ export struct InboxPage {
         .placeholderColor($r("app.color.text_tertiary"))
         .fontColor($r("app.color.text_primary"))
         .backgroundColor($r("app.color.card"))
+        .border({
+          width: this.isSearchFocused ? 1 : 0.5,
+          color: this.isSearchFocused ? $r("app.color.primary") : $r("app.color.divider")
+        })
         .borderRadius(Constants.RADIUS_BUTTON)
+        .shadow(Constants.SHADOW_CARD)
         .height(48)
         .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, bottom: 8 })
+        .animation({ duration: Constants.DURATION_NORMAL, curve: Curve.EaseOut })
         .onChange((value: string) => {
           this.searchText = value
+        })
+        .onFocus(() => {
+          this.isSearchFocused = true
+        })
+        .onBlur(() => {
+          this.isSearchFocused = false
         })
 
       if (this.getFiltered().length === 0) {

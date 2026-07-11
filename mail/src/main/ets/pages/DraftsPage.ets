@@ -1,6 +1,6 @@
-import Constants from '../common/Constants'
-import { EmailMock } from '../common/MockData'
-import { EmailCard } from '../components/EmailCard'
+﻿import Constants from '../common/Constants'
+import { EmptyState } from '../components/EmptyState'
+import { ComposeParams } from './ComposePage'
 
 interface DraftItem {
   id: number
@@ -20,15 +20,17 @@ export struct DraftsPage {
   ]
 
   private deleteDraft(index: number): void {
-    this.draftList.splice(index, 1)
+    const nextDraftList: DraftItem[] = []
+    for (let i = 0; i < this.draftList.length; i++) {
+      if (i !== index) {
+        nextDraftList.push(this.draftList[i])
+      }
+    }
+    this.draftList = nextDraftList
   }
 
   private editDraft(item: DraftItem): void {
-    const params: Record<string, string> = {
-      'toEmail': item.toEmail,
-      'subject': item.subject,
-      'content': item.content
-    }
+    const params: ComposeParams = new ComposeParams(item.toEmail, '', '', item.subject, item.content)
     this.pathStack.pushPathByName('ComposePage', params)
   }
 
@@ -42,18 +44,7 @@ export struct DraftsPage {
         .width('100%')
 
       if (this.draftList.length === 0) {
-        Column() {
-          SymbolGlyph($r('sys.symbol.doc'))
-            .fontSize(48)
-            .fontColor([$r('app.color.text_tertiary')])
-          Text('暂无草稿')
-            .fontSize(16)
-            .fontColor($r('app.color.text_tertiary'))
-            .margin({ top: 12 })
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+        EmptyState({ icon: $r('sys.symbol.doc'), message: '暂无草稿' })
       } else {
         List({ scroller: this.scroller }) {
           ForEach(this.draftList, (item: DraftItem, index: number) => {
@@ -90,7 +81,7 @@ export struct DraftsPage {
               }
               .width('100%')
               .padding({ top: 14, bottom: 14, left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
-              .borderRadius(15)
+              .borderRadius(Constants.RADIUS_CARD)
               .backgroundColor($r('app.color.card'))
               .margin({ top: 4, bottom: 4 })
               .onClick(() => { this.editDraft(item) })

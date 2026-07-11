@@ -8,6 +8,7 @@
     { "name": "warning", "value": "#FF9500" },
     { "name": "info", "value": "#5AC8FA" },
     { "name": "success", "value": "#6BCB77" },
+    { "name": "tag_text", "value": "#FFFFFF" },
     { "name": "danger", "value": "#FF4757" },
     { "name": "star", "value": "#FFD93D" },
     { "name": "text_primary", "value": "#E8E8E8" },

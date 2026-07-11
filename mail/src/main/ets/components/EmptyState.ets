@@ -2,7 +2,7 @@
 
 @Component
 export struct EmptyState {
-  @Prop icon: ResourceStr = $r('sys.symbol.tray')
+  @Prop icon: Resource = $r('sys.symbol.envelope')
   @Prop message: string = '暂无数据'
   @Prop iconSize: number = 48
 

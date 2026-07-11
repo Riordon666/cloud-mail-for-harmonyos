@@ -8,7 +8,7 @@ export struct BadgeDot {
       Circle()
         .width(8)
         .height(8)
-        .fill($r('app.color.primary'))
+        .foregroundColor($r('app.color.primary'))
     } else if (this.count > 0) {
       Text(this.count > 99 ? '99+' : this.count.toString())
         .fontSize(10)

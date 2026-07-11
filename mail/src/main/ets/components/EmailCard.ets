@@ -7,6 +7,7 @@ export struct EmailCard {
   @Prop subject: string = ''
   @Prop time: string = ''
   @Prop unread: boolean = false
+  @Prop status: string = ''
   onCardClick?: () => void
 
   build() {
@@ -39,6 +40,16 @@ export struct EmailCard {
           .margin({ top: 4 })
           .width('100%')
           .animation({ duration: 300, curve: Curve.EaseInOut })
+
+        if (this.status !== '') {
+          Text(this.status)
+            .fontSize(10)
+            .fontColor($r('app.color.tag_text'))
+            .backgroundColor($r('app.color.success'))
+            .borderRadius(Constants.RADIUS_SMALL)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .margin({ top: 6 })
+        }
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
@@ -47,7 +58,7 @@ export struct EmailCard {
         Circle()
           .width(8)
           .height(8)
-          .fill($r('app.color.primary'))
+          .foregroundColor($r('app.color.primary'))
           .margin({ left: 8 })
       }
     }

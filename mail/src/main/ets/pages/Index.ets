@@ -1,4 +1,4 @@
-import { hdsMaterial, HdsTabs, HdsTabsController } from "@kit.UIDesignKit"
+﻿import { hdsMaterial, HdsTabs, HdsTabsController } from "@kit.UIDesignKit"
 import { HdsNavigation, HdsNavigationAttribute } from "@kit.UIDesignKit"
 import { SymbolGlyphModifier } from "@kit.ArkUI"
 import { motion } from "@kit.MultimodalAwarenessKit"
@@ -9,7 +9,7 @@ import { DraftsPage } from "./DraftsPage"
 import { StarredPage } from "./StarredPage"
 import { SettingsPage } from "./SettingsPage"
 import { DetailPageContent } from "./DetailPage"
-import { ComposePageContent } from "./ComposePage"
+import { ComposePageContent, ComposeParams } from "./ComposePage"
 import { EmailMock } from "../common/MockData"
 
 class DetailParams {
@@ -152,7 +152,11 @@ struct Index {
     if (name === "DetailPage") {
       DetailPageContent({ emailData: param as DetailParams })
     } else if (name === "ComposePage") {
-      ComposePageContent()
+      if (param instanceof ComposeParams) {
+        ComposePageContent({ composeParams: param })
+      } else {
+        ComposePageContent()
+      }
     }
   }
 }

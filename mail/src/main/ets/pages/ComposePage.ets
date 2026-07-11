@@ -1,15 +1,40 @@
 ﻿import Constants from "../common/Constants"
 import { HdsNavDestination, HdsNavDestinationAttribute, HdsNavDestinationTitleMode, ScrollEffectType, hdsMaterial } from "@kit.UIDesignKit"
 
+export class ComposeParams {
+  toEmail: string
+  ccEmail: string
+  bccEmail: string
+  subject: string
+  content: string
+
+  constructor(toEmail: string = '', ccEmail: string = '', bccEmail: string = '', subject: string = '', content: string = '') {
+    this.toEmail = toEmail
+    this.ccEmail = ccEmail
+    this.bccEmail = bccEmail
+    this.subject = subject
+    this.content = content
+  }
+}
+
 @Component
 export struct ComposePageContent {
   private scroller: Scroller = new Scroller()
+  @Prop composeParams: ComposeParams = new ComposeParams()
   @State toEmail: string = ""
   @State ccEmail: string = ""
   @State bccEmail: string = ""
   @State subject: string = ""
   @State content: string = ""
   @State sending: boolean = false
+
+  aboutToAppear(): void {
+    this.toEmail = this.composeParams.toEmail
+    this.ccEmail = this.composeParams.ccEmail
+    this.bccEmail = this.composeParams.bccEmail
+    this.subject = this.composeParams.subject
+    this.content = this.composeParams.content
+  }
 
   build() {
     HdsNavDestination() {
@@ -69,7 +94,7 @@ export struct ComposePageContent {
               .fontSize(20).fontColor([$r("sys.color.icon_on_primary")])
             Text("发送").fontSize(13).fontColor($r("sys.color.icon_on_primary")).margin({ left: 4 })
           }
-          .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+          .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 10, bottom: 10 })
           .backgroundColor($r("app.color.primary")).borderRadius(22)
           .onClick(() => { this.sendEmail() })
           .justifyContent(FlexAlign.Center).width("100%")
@@ -119,7 +144,7 @@ export struct ComposePageContent {
   }
 
   private sendEmail(): void {
-    if (this.toEmail.trim() === "") { return }
+    if (this.toEmail.trim() === "" || this.sending) { return }
     this.sending = true
     setTimeout(() => {
       this.sending = false

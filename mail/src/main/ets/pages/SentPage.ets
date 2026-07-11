@@ -1,6 +1,7 @@
-import Constants from '../common/Constants'
-import { MOCK_EMAILS, EmailMock } from '../common/MockData'
+﻿import Constants from '../common/Constants'
+import { EmailMock } from '../common/MockData'
 import { EmailCard } from '../components/EmailCard'
+import { EmptyState } from '../components/EmptyState'
 
 class DetailParams {
   emailData: EmailMock
@@ -13,33 +14,55 @@ class DetailParams {
   }
 }
 
+interface SentEmailItem {
+  emailData: EmailMock
+  status: string
+}
+
 @Component
 export struct SentPage {
   private scroller: Scroller = new Scroller()
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
-  private sentList: EmailMock[] = [
+  private sentList: SentEmailItem[] = [
     {
-      id: 100, name: 'Re: 项目进展', email: 'admin@riordon.xyz',
-      subject: 'Re: 项目进展',
-      body: '好的，第一阶段的交付物已经准备好了，请查收附件。第二阶段需要额外的人力资源，我已经提交了申请。',
-      time: '昨天', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
+      emailData: {
+        id: 100, name: 'Re: 项目进展', email: 'admin@riordon.xyz',
+        subject: 'Re: 项目进展',
+        body: '好的，第一阶段的交付物已经准备好了，请查收附件。第二阶段需要额外的人力资源，我已经提交了申请。',
+        time: '昨天', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
+      },
+      status: '已发送'
     },
     {
-      id: 101, name: 'Re: Q4 设计稿', email: 'admin@riordon.xyz',
-      subject: 'Re: Q4 设计稿评审通知',
-      body: '收到，我会在周五之前反馈修改意见。',
-      time: '周一', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
+      emailData: {
+        id: 101, name: 'Re: Q4 设计稿', email: 'admin@riordon.xyz',
+        subject: 'Re: Q4 设计稿评审通知',
+        body: '收到，我会在周五之前反馈修改意见。',
+        time: '周一', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
+      },
+      status: '已发送'
     },
     {
-      id: 102, name: 'Re: 周报', email: 'admin@riordon.xyz',
-      subject: 'Re: 本周工作总结',
-      body: '本周完成了邮件模块的前端重构，下周开始后端API对接。',
-      time: '周日', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
+      emailData: {
+        id: 102, name: 'Re: 周报', email: 'admin@riordon.xyz',
+        subject: 'Re: 本周工作总结',
+        body: '本周完成了邮件模块的前端重构，下周开始后端API对接。',
+        time: '周日', unread: false, cc: [], bcc: [], attList: [], htmlContent: ''
+      },
+      status: '已发送'
     }
   ]
 
-  private openDetail(item: EmailMock, index: number): void {
-    const params: DetailParams = new DetailParams(item, this.sentList, index)
+  private getSentEmails(): EmailMock[] {
+    const emails: EmailMock[] = []
+    for (let i = 0; i < this.sentList.length; i++) {
+      emails.push(this.sentList[i].emailData)
+    }
+    return emails
+  }
+
+  private openDetail(item: SentEmailItem, index: number): void {
+    const params: DetailParams = new DetailParams(item.emailData, this.getSentEmails(), index)
     this.pathStack.pushPathByName('DetailPage', params)
   }
 
@@ -53,31 +76,21 @@ export struct SentPage {
         .width('100%')
 
       if (this.sentList.length === 0) {
-        Column() {
-          SymbolGlyph($r('sys.symbol.paperplane'))
-            .fontSize(48)
-            .fontColor([$r('app.color.text_tertiary')])
-          Text('暂无已发送邮件')
-            .fontSize(16)
-            .fontColor($r('app.color.text_tertiary'))
-            .margin({ top: 12 })
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+        EmptyState({ icon: $r('sys.symbol.paperplane'), message: '暂无已发送邮件' })
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.sentList, (item: EmailMock, index: number) => {
+          ForEach(this.sentList, (item: SentEmailItem, index: number) => {
             ListItem() {
               EmailCard({
-                name: item.name,
-                subject: item.subject,
-                time: item.time,
-                unread: item.unread,
+                name: item.emailData.name,
+                subject: item.emailData.subject,
+                time: item.emailData.time,
+                unread: item.emailData.unread,
+                status: item.status,
                 onCardClick: () => { this.openDetail(item, index) }
               })
             }
-          }, (item: EmailMock): string => item.id.toString())
+          }, (item: SentEmailItem): string => item.emailData.id.toString())
         }
         .width('100%')
         .layoutWeight(1)

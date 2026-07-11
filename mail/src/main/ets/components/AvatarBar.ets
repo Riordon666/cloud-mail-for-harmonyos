@@ -1,4 +1,4 @@
-@Component
+﻿@Component
 export struct AvatarBar {
   @Prop name: string = ''
   @Prop avatarSize: number = 44
@@ -20,7 +20,7 @@ export struct AvatarBar {
       Circle()
         .width(this.avatarSize)
         .height(this.avatarSize)
-        .fill(this.bgColor || this.hashColor(this.name))
+        .foregroundColor(this.bgColor || this.hashColor(this.name))
       Text(this.name.charAt(0).toUpperCase())
         .fontSize(this.fontSize)
         .fontWeight(FontWeight.Medium)

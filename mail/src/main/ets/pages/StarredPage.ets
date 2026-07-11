@@ -1,7 +1,8 @@
-import Constants from '../common/Constants'
+﻿import Constants from '../common/Constants'
 import { MOCK_EMAILS, EmailMock, getStarredIds, toggleEmailStar } from '../common/MockData'
-import { promptAction } from '@kit.ArkUI'
+import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
+import { EmptyState } from '../components/EmptyState'
 
 class DetailParams {
   emailData: EmailMock
@@ -20,6 +21,7 @@ export struct StarredPage {
   @StorageLink('starredIds') @Watch('onStarredChange') starredIds: number[] = []
   @State starList: EmailMock[] = []
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
+  private toast: PromptAction = this.getUIContext().getPromptAction()
 
   aboutToAppear(): void {
     this.buildStarList()
@@ -44,6 +46,14 @@ export struct StarredPage {
     this.pathStack.pushPathByName('DetailPage', params)
   }
 
+  private showToast(message: string): void {
+    try {
+      this.toast.openToast({ message: message, duration: 1500 })
+    } catch (err) {
+      console.error('openToast failed')
+    }
+  }
+
   build() {
     Column() {
       Text('星标邮件')
@@ -54,18 +64,7 @@ export struct StarredPage {
         .width('100%')
 
       if (this.starList.length === 0) {
-        Column() {
-          SymbolGlyph($r('sys.symbol.star'))
-            .fontSize(48)
-            .fontColor([$r('app.color.text_tertiary')])
-          Text('暂无星标邮件')
-            .fontSize(16)
-            .fontColor($r('app.color.text_tertiary'))
-            .margin({ top: 12 })
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+        EmptyState({ icon: $r('sys.symbol.star'), message: '暂无星标邮件' })
       } else {
         List({ scroller: this.scroller }) {
           ForEach(this.starList, (item: EmailMock, index: number) => {
@@ -114,10 +113,10 @@ export struct StarredPage {
       }
       .width(80)
       .height('100%')
-      .backgroundColor('#FF9500')
+      .backgroundColor($r('app.color.warning'))
       .onClick(() => {
         toggleEmailStar(id)
-        promptAction.showToast({ message: '已取消星标', duration: 1500 })
+        this.showToast('已取消星标')
       })
     }
     .height('100%')
