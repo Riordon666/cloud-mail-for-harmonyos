@@ -1,7 +1,6 @@
 ﻿import { hdsMaterial, HdsTabs, HdsTabsController } from "@kit.UIDesignKit"
 import { HdsNavigation } from "@kit.UIDesignKit"
 import { SymbolGlyphModifier } from "@kit.ArkUI"
-import { motion } from "@kit.MultimodalAwarenessKit"
 
 import { InboxPage } from "./InboxPage"
 import { SentPage } from "./SentPage"
@@ -27,7 +26,6 @@ import Constants from "../common/Constants"
 @Component
 struct Index {
   @State currentTab: number = 0
-  @State isLeftHand: boolean = false
   @StorageLink('authToken') authToken: string = ''
   @StorageProp('currentBreakpoint') currentBreakpoint: string = 'sm'
   private tabController: HdsTabsController = new HdsTabsController()
@@ -55,11 +53,6 @@ struct Index {
     this.isHomePrepared = true
     try {
       this.tabController.preloadItems([0, 1, 2, 3, 4])
-      motion.on("holdingHandChanged", (status: motion.HoldingHandStatus) => {
-        animateTo({ duration: 400, curve: Curve.EaseInOut }, () => {
-          this.isLeftHand = status === motion.HoldingHandStatus.LEFT_HAND_HELD
-        })
-      })
     } catch (err) {
       console.error("init failed")
     }
@@ -75,7 +68,7 @@ struct Index {
       })
     } else {
       HdsNavigation(this.pathStack) {
-      Stack({ alignContent: this.isLeftHand ? Alignment.BottomStart : Alignment.BottomEnd }) {
+      Stack({ alignContent: Alignment.BottomEnd }) {
         HdsTabs({ controller: this.tabController, index: this.currentTab }) {
           TabContent() { InboxPage() }
             .tabBar(new BottomTabBarStyle({
@@ -167,7 +160,7 @@ struct Index {
         .justifyContent(FlexAlign.Center)
         .width(56)
         .aspectRatio(1)
-        .margin(this.isLeftHand ? { left: 16, bottom: 55 } : { right: 16, bottom: 55 })
+        .margin({ right: 16, bottom: 55 })
         .onClick(() => {
           this.pathStack.pushPathByName("ComposePage", undefined)
         })

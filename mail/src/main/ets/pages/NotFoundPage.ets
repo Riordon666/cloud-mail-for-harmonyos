@@ -4,7 +4,7 @@
 export struct NotFoundPage {
   build() {
     Column() {
-      SymbolGlyph($r('sys.symbol.questionmark'))
+      SymbolGlyph($r('sys.symbol.questionmark_circle'))
         .fontSize(64)
         .fontColor([$r('app.color.text_tertiary')])
       Text('404')
