@@ -20,6 +20,7 @@ import { RoleManagementPage } from "./RoleManagementPage"
 import { AnalyticsPage } from "./AnalyticsPage"
 import { RegistrationCodePage } from "./RegistrationCodePage"
 import { NotFoundPage } from "./NotFoundPage"
+import { SplashPage } from "./SplashPage"
 import Constants from "../common/Constants"
 
 @Entry
@@ -28,6 +29,7 @@ struct Index {
   @State currentTab: number = 0
   @StorageLink('authToken') authToken: string = ''
   @StorageProp('currentBreakpoint') currentBreakpoint: string = 'sm'
+  @State showSplash: boolean = true
   private tabController: HdsTabsController = new HdsTabsController()
   private pathStack: NavPathStack = new NavPathStack()
   private isHomePrepared: boolean = false
@@ -59,6 +61,7 @@ struct Index {
   }
 
   build() {
+    Stack() {
     if (this.authToken === '') {
       AuthPage({
         onAuthenticated: () => {
@@ -177,6 +180,19 @@ struct Index {
     .height("100%")
       .backgroundColor($r("app.color.background"))
     }
+
+    // 应用内闪屏覆盖层：蓝底 + 半屏大图标，淡出后移除
+    if (this.showSplash) {
+      SplashPage({
+        onSplashFinished: () => {
+          this.showSplash = false
+        }
+      })
+    }
+    }
+    .width("100%")
+    .height("100%")
+    .backgroundColor($r("app.color.background"))
   }
 
   private logout(): void {

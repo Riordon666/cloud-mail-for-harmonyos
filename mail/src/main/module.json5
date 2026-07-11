@@ -26,6 +26,7 @@
         "description": "$string:MailAbility_desc",
         "icon": "$media:layered_image",
         "label": "$string:MailAbility_label",
+        "startWindow": "$profile:start_window",
         "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,

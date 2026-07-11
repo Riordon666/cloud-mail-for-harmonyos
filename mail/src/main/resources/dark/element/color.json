@@ -20,6 +20,6 @@
     { "name": "divider", "value": "#2C2C2E" },
     { "name": "overlay", "value": "#66000000" },
     { "name": "skeleton", "value": "#2C2C2E" },
-    { "name": "start_window_background", "value": "#0D0D0D" }
+    { "name": "start_window_background", "value": "#1A56DB" }
   ]
 }
