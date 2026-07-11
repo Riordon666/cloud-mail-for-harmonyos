@@ -1,8 +1,9 @@
-{
+﻿{
   "string": [
     {
       "name": "app_name",
-      "value": "cloud_mail_for_harmonyos"
+      "value": "Cloud Mail"
     }
   ]
 }
+
