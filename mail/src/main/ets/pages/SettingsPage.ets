@@ -1,5 +1,5 @@
 ﻿import { PromptAction } from '@kit.ArkUI'
-import { ConfigurationConstant } from '@kit.AbilityKit'
+import { bundleManager, common, ConfigurationConstant } from '@kit.AbilityKit'
 import { HdsListItemCard, IconSize, PrefixIcon, SuffixTextAndArrow } from '@kit.UIDesignKit'
 import Constants from '../common/Constants'
 import { AvatarBar } from '../components/AvatarBar'
@@ -9,7 +9,8 @@ import { setAppColorMode } from '../mailability/MailAbility'
 export struct SettingsPage {
   @StorageLink('authEmail') authEmail: string = ''
   @StorageLink('authRole') authRole: string = 'user'
-  @StorageLink('currentColorMode') currentColorMode: number = -1
+  @StorageLink('authRoleName') authRoleName: string = '普通用户'
+  @StorageLink('currentColorMode') currentColorMode: number = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
   @State showLogoutConfirm: boolean = false
   @State showThemeDialog: boolean = false
   private toast: PromptAction = this.getUIContext().getPromptAction()
@@ -24,7 +25,7 @@ export struct SettingsPage {
 
   aboutToAppear(): void {
     if (this.currentColorMode === undefined || this.currentColorMode === null) {
-      this.currentColorMode = -1
+      this.currentColorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
     }
   }
 
@@ -52,7 +53,7 @@ export struct SettingsPage {
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
               Row({ space: Constants.GAP_SMALL }) {
-                Text(this.authRole === 'admin' ? '管理员' : '普通用户')
+                Text(this.getRoleLabel())
                   .fontSize(Constants.FONT_SIZE_SMALL)
                   .fontColor($r('app.color.tag_text'))
                   .padding({ left: 10, right: 10, top: 4, bottom: 4 })
@@ -77,9 +78,7 @@ export struct SettingsPage {
           Column() {
             this.SettingsRow('账号管理', '主邮箱与副邮箱', '', $r('sys.symbol.person'), () => { this.openAccountManagement() })
             Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
-            this.SettingsRow('外观与主题', '主题与显示模式', this.getThemeLabel(), $r('sys.symbol.paintbrush'), () => { this.showThemeDialog = true })
-            Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
-            this.SettingsRow('通知设置', '新邮件提醒', '', $r('sys.symbol.envelope'), () => { this.showToast('通知设置将在后续阶段开放') })
+            this.ThemeSettingsRow()
           }
           .width('100%')
           .borderRadius(Constants.RADIUS_CARD)
@@ -89,9 +88,9 @@ export struct SettingsPage {
 
           this.SectionTitle('隐私与支持')
           Column() {
-            this.SettingsRow('隐私政策', '了解数据使用方式', '', $r('sys.symbol.lock_shield'), () => { this.showToast('隐私政策页面将在后续阶段开放') })
+            this.SettingsRow('隐私政策', '了解数据使用方式', '', $r('sys.symbol.lock_shield'), () => { this.openPrivacyPolicy() })
             Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
-            this.SettingsRow('关于', 'Cloud Mail for HarmonyOS', 'v1.0.0', $r('sys.symbol.questionmark_circle'), () => { this.showToast('Cloud Mail for HarmonyOS') })
+            this.SettingsRow('关于', '云笺集 · HarmonyOS 原生邮件客户端', this.getAppVersionLabel(), $r('sys.symbol.questionmark_circle'), () => { this.showToast('云笺集') })
           }
           .width('100%')
           .borderRadius(Constants.RADIUS_CARD)
@@ -204,6 +203,42 @@ export struct SettingsPage {
   }
 
   @Builder
+  private ThemeSettingsRow() {
+    Row() {
+      SymbolGlyph($r('sys.symbol.paintbrush'))
+        .fontSize(Constants.SIZE_ICON_MEDIUM)
+        .fontColor([$r('app.color.text_primary')])
+        .width(32)
+        .margin({ right: 12 })
+
+      Column({ space: 3 }) {
+        Text('外观与主题')
+          .fontSize(Constants.FONT_SIZE_SUBTITLE)
+          .fontColor($r('app.color.text_primary'))
+          .maxLines(1)
+        Text('主题与显示模式')
+          .fontSize(Constants.FONT_SIZE_SMALL)
+          .fontColor($r('app.color.text_secondary'))
+          .maxLines(1)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      Text(this.getThemeLabel())
+        .fontSize(Constants.FONT_SIZE_SMALL)
+        .fontColor($r('app.color.text_secondary'))
+        .margin({ right: 6 })
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(Constants.SIZE_ICON_SMALL)
+        .fontColor([$r('app.color.text_tertiary')])
+    }
+    .width('100%')
+    .height(68)
+    .padding({ left: 16, right: 16 })
+    .onClick(() => { this.showThemeDialog = true })
+  }
+
+  @Builder
   private SettingsCard(title: string, description: string, value: string, icon: ResourceStr, onItemClick: () => void) {
     HdsListItemCard({
       prefixItem: new PrefixIcon({
@@ -239,9 +274,9 @@ export struct SettingsPage {
           .width('100%')
           .padding({ left: 20, right: 20, top: 20, bottom: 16 })
 
-        this.ThemeOption('跟随系统', -1)
-        this.ThemeOption('浅色模式', 1)
-        this.ThemeOption('深色模式', 0)
+        this.ThemeOption('跟随系统', ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
+        this.ThemeOption('浅色模式', ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
+        this.ThemeOption('深色模式', ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
 
         Button('取消', { type: ButtonType.Normal, stateEffect: true })
           .width('100%')
@@ -326,13 +361,32 @@ export struct SettingsPage {
   }
 
   private getThemeLabel(): string {
-    if (this.currentColorMode === 1) {
+    if (this.currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
       return '浅色模式'
     }
-    if (this.currentColorMode === 0) {
+    if (this.currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
       return '深色模式'
     }
     return '跟随系统'
+  }
+
+  private getRoleLabel(): string {
+    const roleName: string = this.authRoleName.trim()
+    if (roleName === 'admin') {
+      return '管理员'
+    }
+    return roleName === '' ? '普通用户' : roleName
+  }
+
+  private getAppVersionLabel(): string {
+    try {
+      const info: bundleManager.BundleInfo = bundleManager.getBundleInfoForSelfSync(
+        bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
+      return 'v' + info.versionName
+    } catch (err) {
+      console.error('get app version failed')
+      return 'v1.0.2'
+    }
   }
 
   private selectTheme(mode: number): void {
@@ -380,6 +434,16 @@ export struct SettingsPage {
   private openRegistrationCodeManagement(): void {
     if (this.onManageRegistrationCodes) {
       this.onManageRegistrationCodes()
+    }
+  }
+
+  private async openPrivacyPolicy(): Promise<void> {
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+    try {
+      await context.openLink(Constants.PRIVACY_POLICY_URL)
+    } catch (err) {
+      console.error('open privacy policy failed')
+      this.showToast('暂时无法打开隐私政策')
     }
   }
 

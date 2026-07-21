@@ -2,7 +2,7 @@
 
 class WebsiteConfigPayload {
   register: number = 1
-  title: string = 'Cloud Mail'
+  title: string = '云笺集'
   regKey: number = 1
   registerVerify: number = 1
   regVerifyOpen: boolean = false

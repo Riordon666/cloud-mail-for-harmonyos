@@ -14,7 +14,6 @@ export struct AuthPage {
   @State registrationVerificationRequired: boolean = false
   @State minEmailPrefix: number = 1
   @State isSubmitting: boolean = false
-  @StorageLink('siteTitle') siteTitle: string = 'Cloud Mail'
   @StorageLink('registrationEnabled') registrationEnabled: boolean = true
   private toast: PromptAction = this.getUIContext().getPromptAction()
   onAuthenticated?: () => void
@@ -67,7 +66,7 @@ export struct AuthPage {
       .height(72)
       .margin({ bottom: 20 })
 
-      Text(this.siteTitle)
+      Text('云笺集')
         .fontSize(Constants.FONT_SIZE_HERO)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_primary'))

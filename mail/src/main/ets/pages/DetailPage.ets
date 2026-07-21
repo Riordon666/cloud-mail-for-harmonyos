@@ -312,7 +312,13 @@ export struct DetailPageContent {
   private async deleteEmail(): Promise<void> {
     try {
       await MailService.delete(this.email.id)
-      this.emailList.splice(this.currentIndex, 1)
+      const remaining: MailItem[] = []
+      for (let index = 0; index < this.emailList.length; index++) {
+        if (this.emailList[index].id !== this.email.id) {
+          remaining.push(this.emailList[index])
+        }
+      }
+      this.emailList = remaining
       if (this.emailList.length === 0) {
         if (this.pathStack !== null) { this.pathStack.pop() }
         return
@@ -363,6 +369,15 @@ export struct DetailPageContent {
       const nextEmail: MailItem = this.email.copy()
       nextEmail.starred = nextStarred
       this.email = nextEmail
+      const updatedList: MailItem[] = []
+      for (let index = 0; index < this.emailList.length; index++) {
+        if (this.emailList[index].id === nextEmail.id) {
+          updatedList.push(nextEmail)
+        } else {
+          updatedList.push(this.emailList[index])
+        }
+      }
+      this.emailList = updatedList
       this.isStarred = nextStarred
       this.showToast(nextStarred ? '已加入星标' : '已取消星标')
     } catch (err) {

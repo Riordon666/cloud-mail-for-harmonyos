@@ -11,7 +11,6 @@ export struct DraftsPage {
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   @StorageLink('draftRevision') @Watch('onDraftRevision') draftRevision: number = 0
   @State draftList: MailDraft[] = []
-  @State isHeaderBlurred: boolean = false
 
   aboutToAppear(): void {
     this.refreshDrafts()
@@ -103,30 +102,13 @@ export struct DraftsPage {
         .height('100%')
         .scrollBar(BarState.Off)
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
-        .onDidScroll(() => {
-          this.isHeaderBlurred = this.scroller.currentOffset().yOffset > 0
-        })
-        .onReachStart(() => { this.isHeaderBlurred = false })
       }
 
       Stack({ alignContent: Alignment.BottomStart }) {
-        if (this.isHeaderBlurred) {
-          Row()
-            .width('100%')
-            .height('100%')
-            .backgroundEffect({
-              radius: 30,
-              saturation: 1.0,
-              brightness: 1.0,
-              color: $r('app.color.glass_surface')
-            })
-            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-        } else {
-          Row()
-            .width('100%')
-            .height('100%')
-            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-        }
+        Row()
+          .width('100%')
+          .height('100%')
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
 
         Text('草稿箱')
           .fontSize(28)

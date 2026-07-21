@@ -7,12 +7,14 @@ export class SessionService {
     let token: string = ''
     let email: string = ''
     let role: string = 'user'
+    let roleName: string = '普通用户'
     let accountId: number = 0
     try {
       SessionService.sessionPreferences = preferences.getPreferencesSync(context, { name: 'cloud_mail_auth' })
       token = SessionService.sessionPreferences.getSync('token', '') as string
       email = SessionService.sessionPreferences.getSync('email', '') as string
       role = SessionService.sessionPreferences.getSync('role', 'user') as string
+      roleName = SessionService.sessionPreferences.getSync('roleName', '普通用户') as string
       accountId = SessionService.sessionPreferences.getSync('accountId', 0) as number
     } catch (err) {
       console.error('initialize session preferences failed')
@@ -20,14 +22,16 @@ export class SessionService {
     AppStorage.setOrCreate('authToken', token)
     AppStorage.setOrCreate('authEmail', email)
     AppStorage.setOrCreate('authRole', role)
+    AppStorage.setOrCreate('authRoleName', roleName)
     AppStorage.setOrCreate('currentAccountId', accountId)
     AppStorage.setOrCreate('sessionRevision', 0)
   }
 
-  static saveSession(token: string, email: string, role: string, accountId: number): void {
+  static saveSession(token: string, email: string, role: string, roleName: string, accountId: number): void {
     AppStorage.set('authToken', token)
     AppStorage.set('authEmail', email)
     AppStorage.set('authRole', role)
+    AppStorage.set('authRoleName', roleName)
     AppStorage.set('currentAccountId', accountId)
     SessionService.notifySessionChanged()
     if (SessionService.sessionPreferences === null) {
@@ -37,6 +41,7 @@ export class SessionService {
       SessionService.sessionPreferences.putSync('token', token)
       SessionService.sessionPreferences.putSync('email', email)
       SessionService.sessionPreferences.putSync('role', role)
+      SessionService.sessionPreferences.putSync('roleName', roleName)
       SessionService.sessionPreferences.putSync('accountId', accountId)
       SessionService.sessionPreferences.flushSync()
     } catch (err) {
@@ -48,6 +53,7 @@ export class SessionService {
     AppStorage.set('authToken', '')
     AppStorage.set('authEmail', '')
     AppStorage.set('authRole', 'user')
+    AppStorage.set('authRoleName', '普通用户')
     AppStorage.set('currentAccountId', 0)
     SessionService.notifySessionChanged()
     if (SessionService.sessionPreferences === null) {
@@ -57,6 +63,7 @@ export class SessionService {
       SessionService.sessionPreferences.deleteSync('token')
       SessionService.sessionPreferences.deleteSync('email')
       SessionService.sessionPreferences.deleteSync('role')
+      SessionService.sessionPreferences.deleteSync('roleName')
       SessionService.sessionPreferences.deleteSync('accountId')
       SessionService.sessionPreferences.flushSync()
     } catch (err) {

@@ -147,7 +147,12 @@ struct Index {
             materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
           }
         })
-        .onChange((index: number) => { this.currentTab = index })
+        .onChange((index: number) => {
+          this.currentTab = index
+          if (index === 4) {
+            this.refreshUserIdentity()
+          }
+        })
         .width("100%")
         .height("100%")
 
@@ -198,6 +203,10 @@ struct Index {
   private logout(): void {
     AuthService.logout()
     this.currentTab = 0
+  }
+
+  private async refreshUserIdentity(): Promise<void> {
+    await AuthService.refreshSession()
   }
 
   @Builder

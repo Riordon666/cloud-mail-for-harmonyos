@@ -39,7 +39,7 @@ export struct SplashPage {
             playMode: PlayMode.Normal
           })
 
-        Text("Cloud Mail")
+        Text("云笺集")
           .fontSize(26)
           .fontColor($r("sys.color.font_on_primary"))
           .fontWeight(FontWeight.Bold)

@@ -1,7 +1,7 @@
 ﻿import { ApiException, ApiResponse, HttpClient } from './HttpClient'
 
 class SystemSettingPayload {
-  title: string = 'Cloud Mail'
+  title: string = '云笺集'
   register: number = 0
   addEmail: number = 0
   manyEmail: number = 0
@@ -36,7 +36,7 @@ export class SystemSettings {
 }
 
 export class SystemSettingsService {
-  private static settings: SystemSettings = new SystemSettings('Cloud Mail', true, true, true)
+  private static settings: SystemSettings = new SystemSettings('云笺集', true, true, true)
 
   static initialize(context: Context): void {
     SystemSettingsService.publishSettings()

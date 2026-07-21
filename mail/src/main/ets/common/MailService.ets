@@ -67,6 +67,10 @@ class SendMailRequest {
 }
 
 export class MailService {
+  static initialize(): void {
+    AppStorage.setOrCreate('mailRevision', 0)
+  }
+
   static async loadInbox(): Promise<MailItem[]> {
     const page: MailPage = await MailService.loadInboxPage(0)
     return page.items
@@ -102,10 +106,12 @@ export class MailService {
     } else {
       await EmailApi.cancelStar(emailId)
     }
+    MailService.notifyChange()
   }
 
   static async delete(emailId: number): Promise<void> {
     await EmailApi.delete(emailId.toString())
+    MailService.notifyChange()
   }
 
   static async send(toEmail: string, ccEmail: string, bccEmail: string, subject: string, content: string,
@@ -125,6 +131,11 @@ export class MailService {
   private static getCurrentAccountId(): number {
     const accountId: number | undefined = AppStorage.get('currentAccountId') as number | undefined
     return accountId === undefined ? 0 : accountId
+  }
+
+  private static notifyChange(): void {
+    const revision: number | undefined = AppStorage.get('mailRevision') as number | undefined
+    AppStorage.set('mailRevision', revision === undefined ? 1 : revision + 1)
   }
 
   private static toItems(response: ApiResponse): MailItem[] {

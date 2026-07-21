@@ -24,9 +24,9 @@ export class AuthService {
     }
     try {
       const token: string = await AuthApi.login(email, password)
-      SessionService.saveSession(token, email, 'user', 0)
+      SessionService.saveSession(token, email, 'user', '普通用户', 0)
       const user: AuthUserInfo = await AuthApi.getCurrentUser()
-      SessionService.saveSession(token, user.email, user.role, user.accountId)
+      SessionService.saveSession(token, user.email, user.role, user.roleName, user.accountId)
       return new AuthResult(true, '')
     } catch (err) {
       if (err instanceof ApiException && err.code === 401) {
@@ -63,7 +63,7 @@ export class AuthService {
     }
     try {
       const user: AuthUserInfo = await AuthApi.getCurrentUser()
-      SessionService.saveSession(token, user.email, user.role, user.accountId)
+      SessionService.saveSession(token, user.email, user.role, user.roleName, user.accountId)
       return new AuthResult(true, '')
     } catch (err) {
       if (err instanceof ApiException && err.code === 401) {

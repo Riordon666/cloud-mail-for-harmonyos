@@ -11,12 +11,14 @@ export struct InboxPage {
   private scroller: Scroller = new Scroller()
   private searchController: SearchController = new SearchController()
   private dataSource: MailListDataSource = new MailListDataSource()
+  @StorageLink('mailRevision') @Watch('onMailRevision') mailRevision: number = 0
   @State searchText: string = ''
   @State isSearchFocused: boolean = false
-  @State isHeaderBlurred: boolean = false
   @State emailList: MailItem[] = []
   @State isLoading: boolean = false
   @State isLoadingMore: boolean = false
+  @State isRefreshing: boolean = false
+  @State refreshStatus: RefreshStatus = RefreshStatus.Inactive
   @State hasMore: boolean = true
   @State refreshKey: number = 0
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
@@ -26,17 +28,30 @@ export struct InboxPage {
     this.loadEmails()
   }
 
-  private async loadEmails(): Promise<void> {
-    this.isLoading = true
+  private onMailRevision(): void {
+    this.loadEmails(false)
+  }
+
+  private async loadEmails(showLoading: boolean = true, showSuccess: boolean = false): Promise<void> {
+    if (showLoading) {
+      this.isLoading = true
+    }
     try {
       const page: MailPage = await MailService.loadInboxPage(0)
       this.emailList = page.items
       this.hasMore = this.emailList.length < page.total && page.items.length > 0
       this.dataSource.setData(this.emailList)
+      if (showSuccess) {
+        this.showToast('邮件已刷新')
+      }
     } catch (err) {
       this.showRequestError(err)
     } finally {
-      this.isLoading = false
+      if (showLoading) {
+        this.isLoading = false
+      }
+      this.isRefreshing = false
+      this.refreshStatus = RefreshStatus.Inactive
     }
   }
 
@@ -152,6 +167,7 @@ export struct InboxPage {
       result.push(next)
     }
     this.emailList = result
+    this.dataSource.setData(this.emailList)
     this.refreshKey++
   }
 
@@ -166,6 +182,7 @@ export struct InboxPage {
       result.push(next)
     }
     this.emailList = result
+    this.dataSource.setData(this.emailList)
     this.refreshKey++
   }
 
@@ -185,6 +202,30 @@ export struct InboxPage {
     }
   }
 
+  @Builder
+  private RefreshIndicator() {
+    Stack() {
+      if (this.refreshStatus === RefreshStatus.Drag || this.refreshStatus === RefreshStatus.OverDrag ||
+        this.refreshStatus === RefreshStatus.Refresh) {
+        Row({ space: 8 }) {
+          LoadingProgress()
+            .width(20)
+            .height(20)
+            .color($r('app.color.primary'))
+          Text(this.refreshStatus === RefreshStatus.Refresh ? '正在刷新邮件' : '下拉刷新邮件')
+            .fontSize(Constants.FONT_SIZE_SMALL)
+            .fontColor($r('app.color.text_secondary'))
+        }
+        .width('100%')
+        .height(36)
+        .justifyContent(FlexAlign.Center)
+      }
+    }
+    .width('100%')
+    .height(36)
+    .translate({ y: 124 })
+  }
+
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       if (this.isLoading) {
@@ -198,21 +239,41 @@ export struct InboxPage {
         .padding({ top: 120 })
         .justifyContent(FlexAlign.Center)
       } else if (this.getFiltered().length === 0) {
-        Column() {
-          SymbolGlyph($r('sys.symbol.magnifyingglass'))
-            .fontSize(48)
-            .fontColor([$r('app.color.text_tertiary')])
-          Text(this.searchText !== '' ? '未找到相关邮件' : '暂无邮件')
-            .fontSize(Constants.FONT_SIZE_SUBTITLE)
-            .fontColor($r('app.color.text_tertiary'))
-            .margin({ top: 12 })
+        Refresh({ refreshing: $$this.isRefreshing, builder: this.RefreshIndicator() }) {
+          List({ scroller: this.scroller }) {
+            ListItem() {
+              Column().height(124)
+            }
+            ListItem() {
+              Column() {
+                SymbolGlyph($r('sys.symbol.magnifyingglass'))
+                  .fontSize(48)
+                  .fontColor([$r('app.color.text_tertiary')])
+                Text(this.searchText !== '' ? '未找到相关邮件' : '暂无邮件')
+                  .fontSize(Constants.FONT_SIZE_SUBTITLE)
+                  .fontColor($r('app.color.text_tertiary'))
+                  .margin({ top: 12 })
+              }
+              .width('100%')
+              .height(420)
+              .justifyContent(FlexAlign.Center)
+            }
+          }
+          .width('100%')
+          .height('100%')
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+          .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
         }
         .width('100%')
         .height('100%')
-        .padding({ top: 120 })
-        .justifyContent(FlexAlign.Center)
+        .pullToRefresh(true)
+        .refreshOffset(64)
+        .onStateChange((status: RefreshStatus) => { this.refreshStatus = status })
+        .onRefreshing(() => { this.loadEmails(false, true) })
       } else {
-        List({ scroller: this.scroller }) {
+        Refresh({ refreshing: $$this.isRefreshing, builder: this.RefreshIndicator() }) {
+          List({ scroller: this.scroller }) {
           ListItem() {
             Column().height(124)
           }
@@ -252,33 +313,24 @@ export struct InboxPage {
         .width('100%')
         .height('100%')
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
-        .onDidScroll(() => {
-          this.isHeaderBlurred = this.scroller.currentOffset().yOffset > 0
-        })
-        .onReachStart(() => { this.isHeaderBlurred = false })
         .onReachEnd(() => { this.loadMoreEmails() })
+        }
+        .width('100%')
+        .height('100%')
+        .pullToRefresh(true)
+        .refreshOffset(64)
+        .onStateChange((status: RefreshStatus) => { this.refreshStatus = status })
+        .onRefreshing(() => { this.loadEmails(false, true) })
       }
 
       Column() {
         Stack({ alignContent: Alignment.BottomStart }) {
-          if (this.isHeaderBlurred) {
-            Row()
-              .width('100%')
-              .height('100%')
-              .backgroundEffect({
-                radius: 30,
-                saturation: 1.0,
-                brightness: 1.0,
-                color: $r('app.color.glass_surface')
-              })
-              .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-          } else {
-            Row()
-              .width('100%')
-              .height('100%')
-              .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-          }
+          Row()
+            .width('100%')
+            .height('100%')
+            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
 
           Text('收件箱')
             .fontSize(28)

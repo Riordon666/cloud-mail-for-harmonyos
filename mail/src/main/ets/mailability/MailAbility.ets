@@ -6,6 +6,7 @@ import { SystemSettingsService } from '../common/SystemSettingsService'
 import { AdminService } from '../common/AdminService'
 import { DraftService } from '../common/DraftService'
 import { PushService } from '../common/PushService'
+import { MailService } from '../common/MailService'
 
 const PREF_NAME: string = 'cloud_mail_settings'
 
@@ -27,6 +28,7 @@ export default class MailAbility extends UIAbility {
     SystemSettingsService.initialize(this.context)
     DraftService.initialize(this.context)
     AdminService.initialize()
+    MailService.initialize()
     PushService.initPush()
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -42,9 +44,10 @@ export default class MailAbility extends UIAbility {
     })
   }
 
-  private async applySavedColorMode(): Promise<void> {
+  private applySavedColorMode(): void {
     try {
-      const dataPref = await preferences.getPreferences(this.context, PREF_NAME)
+      const dataPref: preferences.Preferences = preferences.getPreferencesSync(
+        this.context, { name: PREF_NAME })
       const mode = dataPref.getSync('colorMode', -1) as number
       if (mode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT ||
         mode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
@@ -70,16 +73,17 @@ export default class MailAbility extends UIAbility {
   onDestroy(): void {}
 }
 
-export async function setAppColorMode(mode: number): Promise<void> {
+export function setAppColorMode(mode: number): void {
   if (appContext === null) {
     return
   }
   try {
-    const dataPref = await preferences.getPreferences(appContext, PREF_NAME)
-    await dataPref.put('colorMode', mode)
-    await dataPref.flush()
-    appContext.getApplicationContext().setColorMode(mode)
+    const dataPref: preferences.Preferences = preferences.getPreferencesSync(
+      appContext, { name: PREF_NAME })
+    dataPref.putSync('colorMode', mode)
+    dataPref.flushSync()
     AppStorage.set('currentColorMode', mode)
+    appContext.getApplicationContext().setColorMode(mode)
     updateSystemBarForMode(mode)
   } catch (err) {
     console.error('setAppColorMode failed: ' + JSON.stringify(err))

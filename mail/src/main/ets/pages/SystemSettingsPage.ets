@@ -44,7 +44,7 @@ export struct SystemSettingsPage {
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
-              TextInput({ placeholder: 'Cloud Mail', text: this.siteTitle })
+              TextInput({ placeholder: '云笺集', text: this.siteTitle })
                 .height(48)
                 .fontColor($r('app.color.text_primary'))
                 .placeholderColor($r('app.color.text_tertiary'))

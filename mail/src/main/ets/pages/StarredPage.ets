@@ -13,23 +13,31 @@ export struct StarredPage {
   private dataSource: MailListDataSource = new MailListDataSource()
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   private toast: PromptAction = this.getUIContext().getPromptAction()
+  @StorageLink('mailRevision') @Watch('onMailRevision') mailRevision: number = 0
   @State starList: MailItem[] = []
   @State isLoading: boolean = false
-  @State isHeaderBlurred: boolean = false
 
   aboutToAppear(): void {
     this.loadStarredEmails()
   }
 
-  private async loadStarredEmails(): Promise<void> {
-    this.isLoading = true
+  private onMailRevision(): void {
+    this.loadStarredEmails(false)
+  }
+
+  private async loadStarredEmails(showLoading: boolean = true): Promise<void> {
+    if (showLoading) {
+      this.isLoading = true
+    }
     try {
       this.starList = await MailService.loadStarred()
       this.dataSource.setData(this.starList)
     } catch (err) {
       this.showRequestError(err)
     } finally {
-      this.isLoading = false
+      if (showLoading) {
+        this.isLoading = false
+      }
     }
   }
 
@@ -115,30 +123,13 @@ export struct StarredPage {
         .height('100%')
         .scrollBar(BarState.Off)
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
-        .onDidScroll(() => {
-          this.isHeaderBlurred = this.scroller.currentOffset().yOffset > 0
-        })
-        .onReachStart(() => { this.isHeaderBlurred = false })
       }
 
       Stack({ alignContent: Alignment.BottomStart }) {
-        if (this.isHeaderBlurred) {
-          Row()
-            .width('100%')
-            .height('100%')
-            .backgroundEffect({
-              radius: 30,
-              saturation: 1.0,
-              brightness: 1.0,
-              color: $r('app.color.glass_surface')
-            })
-            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-        } else {
-          Row()
-            .width('100%')
-            .height('100%')
-            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-        }
+        Row()
+          .width('100%')
+          .height('100%')
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
 
         Text('星标邮件')
           .fontSize(28)

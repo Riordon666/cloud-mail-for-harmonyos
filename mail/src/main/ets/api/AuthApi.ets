@@ -46,11 +46,13 @@ class RemoteUserPayload {
 export class AuthUserInfo {
   email: string
   role: string
+  roleName: string
   accountId: number
 
-  constructor(email: string, role: string, accountId: number) {
+  constructor(email: string, role: string, roleName: string, accountId: number) {
     this.email = email
     this.role = role
+    this.roleName = roleName
     this.accountId = accountId
   }
 }
@@ -81,7 +83,8 @@ export class AuthApi {
     }
     const payload: RemoteUserPayload = response.data as RemoteUserPayload
     const role: string = AuthApi.isAdministrator(payload) ? 'admin' : 'user'
-    return new AuthUserInfo(payload.email, role, payload.account.accountId)
+    const roleName: string = payload.role.name === '' ? '普通用户' : payload.role.name
+    return new AuthUserInfo(payload.email, role, roleName, payload.account.accountId)
   }
 
   static async logout(token: string): Promise<void> {
