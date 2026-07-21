@@ -15,6 +15,7 @@ export struct StarredPage {
   private toast: PromptAction = this.getUIContext().getPromptAction()
   @State starList: MailItem[] = []
   @State isLoading: boolean = false
+  @State isHeaderBlurred: boolean = false
 
   aboutToAppear(): void {
     this.loadStarredEmails()
@@ -68,20 +69,26 @@ export struct StarredPage {
   }
 
   build() {
-    Column() {
-      Text('星标邮件')
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
-        .width('100%')
-
+    Stack({ alignContent: Alignment.TopStart }) {
       if (this.isLoading) {
-        EmptyState({ icon: $r('sys.symbol.star'), message: '正在加载邮件…' })
+        Column() {
+          EmptyState({ icon: $r('sys.symbol.star'), message: '正在加载邮件…' })
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ top: 56 })
       } else if (this.starList.length === 0) {
-        EmptyState({ icon: $r('sys.symbol.star'), message: '暂无星标邮件' })
+        Column() {
+          EmptyState({ icon: $r('sys.symbol.star'), message: '暂无星标邮件' })
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ top: 56 })
       } else {
         List({ scroller: this.scroller }) {
+          ListItem() {
+            Column().height(56)
+          }
           LazyForEach(this.dataSource, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
@@ -105,10 +112,44 @@ export struct StarredPage {
           }
         }
         .width('100%')
-        .layoutWeight(1)
+        .height('100%')
         .scrollBar(BarState.Off)
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
+        .onDidScroll(() => {
+          this.isHeaderBlurred = this.scroller.currentOffset().yOffset > 0
+        })
+        .onReachStart(() => { this.isHeaderBlurred = false })
       }
+
+      Stack({ alignContent: Alignment.BottomStart }) {
+        if (this.isHeaderBlurred) {
+          Row()
+            .width('100%')
+            .height('100%')
+            .backgroundEffect({
+              radius: 30,
+              saturation: 1.0,
+              brightness: 1.0,
+              color: $r('app.color.glass_surface')
+            })
+            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        } else {
+          Row()
+            .width('100%')
+            .height('100%')
+            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        }
+
+        Text('星标邮件')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+          .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
+          .width('100%')
+      }
+      .width('100%')
+      .height(56)
+        .zIndex(1)
     }
     .width('100%')
     .height('100%')

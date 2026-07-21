@@ -3,20 +3,20 @@ import { EmailApi } from '../api/EmailApi'
 import { MailAttachment, MailItem } from './MailModels'
 
 class RemoteAttachment {
-  filename: string = ''
+  filename: string | null = null
   key: string = ''
 }
 
 class RemoteEmail {
   emailId: number = 0
-  sendEmail: string = ''
-  name: string = ''
+  sendEmail: string | null = null
+  name: string | null = null
   accountId: number = 0
-  subject: string = ''
-  text: string = ''
-  content: string = ''
-  cc: string = '[]'
-  bcc: string = '[]'
+  subject: string | null = null
+  text: string | null = null
+  content: string | null = null
+  cc: string | null = null
+  bcc: string | null = null
   toEmail: string = ''
   toName: string = ''
   type: number = 0
@@ -28,6 +28,17 @@ class RemoteEmail {
 
 class RemoteMailList {
   list: RemoteEmail[] = []
+  total: number = 0
+}
+
+export class MailPage {
+  items: MailItem[]
+  total: number
+
+  constructor(items: MailItem[], total: number) {
+    this.items = items
+    this.total = total
+  }
 }
 
 class SendMailRequest {
@@ -57,8 +68,18 @@ class SendMailRequest {
 
 export class MailService {
   static async loadInbox(): Promise<MailItem[]> {
-    const response: ApiResponse = await EmailApi.list(MailService.getCurrentAccountId(), 0, 0, 0, 50, 0)
-    return MailService.toItems(response)
+    const page: MailPage = await MailService.loadInboxPage(0)
+    return page.items
+  }
+
+  static async loadInboxPage(emailId: number): Promise<MailPage> {
+    // 收件箱按当前用户聚合主邮箱和全部副邮箱，服务端 allReceive=1 会忽略单个 accountId 过滤。
+    const response: ApiResponse = await EmailApi.list(MailService.getCurrentAccountId(), 1, emailId, 0, 50, 0)
+    if (response.data === null) {
+      return new MailPage([], 0)
+    }
+    const remoteData: RemoteMailList = response.data as RemoteMailList
+    return new MailPage(MailService.toItems(response), remoteData.total)
   }
 
   static async loadSent(): Promise<MailItem[]> {
@@ -120,12 +141,17 @@ export class MailService {
 
   private static toItem(remote: RemoteEmail): MailItem {
     const item: MailItem = new MailItem()
+    const sendEmail: string = MailService.toSafeString(remote.sendEmail)
+    const senderName: string = MailService.toSafeString(remote.name)
+    const subject: string = MailService.toSafeString(remote.subject)
+    const text: string = MailService.toSafeString(remote.text)
+    const content: string = MailService.toSafeString(remote.content)
     item.id = remote.emailId
     item.accountId = remote.accountId
     item.type = remote.type
-    item.subject = remote.subject
-    item.body = remote.text === '' ? remote.content : remote.text
-    item.htmlContent = remote.content
+    item.subject = subject
+    item.body = text === '' ? content : text
+    item.htmlContent = content
     item.time = MailService.formatTime(remote.createTime)
     item.unread = remote.unread === 0
     item.starred = remote.isStar === 1
@@ -136,11 +162,11 @@ export class MailService {
       item.name = remote.toName === '' ? remote.toEmail : remote.toName
       item.email = remote.toEmail
     } else {
-      item.name = remote.name === '' ? remote.sendEmail : remote.name
-      item.email = remote.sendEmail
+      item.name = senderName === '' ? sendEmail : senderName
+      item.email = sendEmail
     }
     for (let index = 0; index < remote.attList.length; index++) {
-      const filename: string = remote.attList[index].filename
+      const filename: string = MailService.toSafeString(remote.attList[index].filename)
       if (filename !== '') {
         item.attList.push(filename)
         item.attachmentKeys.push(remote.attList[index].key)
@@ -149,8 +175,12 @@ export class MailService {
     return item
   }
 
-  private static toAddressList(rawValue: string): string[] {
-    if (rawValue === '') {
+  private static toSafeString(value: string | null): string {
+    return value === null ? '' : value
+  }
+
+  private static toAddressList(rawValue: string | null): string[] {
+    if (rawValue === null || rawValue === '') {
       return []
     }
     try {

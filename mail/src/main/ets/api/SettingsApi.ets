@@ -7,6 +7,7 @@ class WebsiteConfigPayload {
   registerVerify: number = 1
   regVerifyOpen: boolean = false
   minEmailPrefix: number = 1
+  r2Domain: string | null = null
 }
 
 export class WebsiteConfig {
@@ -15,14 +16,16 @@ export class WebsiteConfig {
   registrationCodeRequired: boolean
   registrationVerificationRequired: boolean
   minEmailPrefix: number
+  r2Domain: string
 
   constructor(title: string, registrationEnabled: boolean, registrationCodeRequired: boolean,
-    registrationVerificationRequired: boolean, minEmailPrefix: number) {
+    registrationVerificationRequired: boolean, minEmailPrefix: number, r2Domain: string) {
     this.title = title
     this.registrationEnabled = registrationEnabled
     this.registrationCodeRequired = registrationCodeRequired
     this.registrationVerificationRequired = registrationVerificationRequired
     this.minEmailPrefix = minEmailPrefix
+    this.r2Domain = r2Domain
   }
 }
 
@@ -34,6 +37,7 @@ export class SettingsApi {
     }
     const payload: WebsiteConfigPayload = response.data as WebsiteConfigPayload
     return new WebsiteConfig(payload.title, payload.register === 0, payload.regKey === 0,
-      payload.registerVerify === 0 || (payload.registerVerify === 2 && payload.regVerifyOpen), payload.minEmailPrefix)
+      payload.registerVerify === 0 || (payload.registerVerify === 2 && payload.regVerifyOpen), payload.minEmailPrefix,
+      payload.r2Domain === null ? '' : payload.r2Domain)
   }
 }

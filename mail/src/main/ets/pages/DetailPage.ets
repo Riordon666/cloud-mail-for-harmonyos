@@ -2,11 +2,13 @@
 import { ApiException } from '../common/HttpClient'
 import { MailDetailParams, MailItem } from '../common/MailModels'
 import { MailService } from '../common/MailService'
+import { SettingsApi, WebsiteConfig } from '../api/SettingsApi'
 import { ComposeParams } from './ComposePage'
-import { DividerModifier, LengthMetrics, PromptAction, SymbolGlyphModifier, ToolBar, ToolBarModifier, ToolBarOptions } from "@kit.ArkUI"
+import { LengthMetrics, PromptAction } from "@kit.ArkUI"
 import { http } from '@kit.NetworkKit'
 import { fileIo, picker } from '@kit.CoreFileKit'
-import { HdsNavDestination, HdsNavDestinationAttribute, ScrollEffectType, hdsMaterial, HdsNavDestinationTitleMode } from "@kit.UIDesignKit"
+import { webview } from '@kit.ArkWeb'
+import { ActionBarButton, ActionBarStyle, BlurStrategy, HdsActionBar, HdsNavDestination, HdsNavDestinationAttribute, ScrollEffectType, hdsMaterial, HdsNavDestinationTitleMode } from "@kit.UIDesignKit"
 
 @Component
 export struct DetailPageContent {
@@ -19,59 +21,117 @@ export struct DetailPageContent {
   @State showDetail: boolean = false
   @State showCcBcc: boolean = false
   @State isStarred: boolean = false
+  @State mediaBaseUrl: string = ''
   private toast: PromptAction = this.getUIContext().getPromptAction()
-  @State toolbarList: ToolBarOptions = new ToolBarOptions()
-  private toolBarModifier: ToolBarModifier = new ToolBarModifier()
-    .height(LengthMetrics.vp(64))
-    .backgroundColor($r("app.color.card"))
-    .stateEffect(true)
-  private dividerModifier: DividerModifier = new DividerModifier().height(0)
+  private webController: webview.WebviewController = new webview.WebviewController()
+  private isWebAttached: boolean = false
+
+  private replyAction: ActionBarButton = new ActionBarButton({
+    baseIcon: $r('sys.symbol.arrowshape_turn_up_left'),
+    onClick: () => { this.replyEmail() },
+    accessibilityText: '回复',
+    hoverTips: '回复',
+    id: 'detail-reply'
+  })
+  private forwardAction: ActionBarButton = new ActionBarButton({
+    baseIcon: $r('sys.symbol.arrowshape_turn_up_right'),
+    onClick: () => { this.forwardEmail() },
+    accessibilityText: '转发',
+    hoverTips: '转发',
+    id: 'detail-forward'
+  })
+  private starAction: ActionBarButton = new ActionBarButton({
+    baseIcon: $r('sys.symbol.star'),
+    altIcon: $r('sys.symbol.star_fill'),
+    onClick: () => { this.toggleStar() },
+    accessibilityText: '星标',
+    hoverTips: '星标',
+    id: 'detail-star'
+  })
+  private deleteAction: ActionBarButton = new ActionBarButton({
+    baseIcon: $r('sys.symbol.trash'),
+    onClick: () => { this.deleteEmail() },
+    accessibilityText: '删除',
+    hoverTips: '删除',
+    id: 'detail-delete'
+  })
+  private startActions: ActionBarButton[] = [this.replyAction, this.forwardAction]
+  private endActions: ActionBarButton[] = [this.deleteAction]
 
   aboutToAppear(): void {
     this.pathStack = AppStorage.get("appPathStack") as NavPathStack
+    this.mediaBaseUrl = this.getAttachmentBaseUrl()
     if (this.emailData.emailData !== undefined) {
       this.email = this.emailData.emailData
       this.emailList = this.emailData.emailList.slice()
       this.currentIndex = this.emailData.currentIndex
       this.isStarred = this.email.starred
     }
-    this.refreshToolbar()
+    this.refreshMediaBaseUrl()
   }
 
-  private refreshToolbar(): void {
-    this.toolbarList.splice(0, this.toolbarList.length)
-    this.toolbarList.push({
-      content: "回复",
-      action: () => { this.replyEmail() },
-      toolBarSymbolOptions: {
-        normal: new SymbolGlyphModifier($r("sys.symbol.arrowshape_turn_up_left"))
-          .fontColor([$r("app.color.text_primary")])
-      }
-    })
-    this.toolbarList.push({
-      content: "转发",
-      action: () => { this.forwardEmail() },
-      toolBarSymbolOptions: {
-        normal: new SymbolGlyphModifier($r("sys.symbol.arrowshape_turn_up_right"))
-          .fontColor([$r("app.color.text_primary")])
-      }
-    })
-    this.toolbarList.push({
-      content: this.isStarred ? "已星标" : "星标",
-      action: () => { this.toggleStar() },
-      toolBarSymbolOptions: {
-        normal: new SymbolGlyphModifier(this.isStarred ? $r("sys.symbol.star_fill") : $r("sys.symbol.star"))
-          .fontColor(this.isStarred ? [$r("app.color.primary")] : [$r("app.color.text_primary")])
-      }
-    })
-    this.toolbarList.push({
-      content: "删除",
-      action: () => { this.deleteEmail() },
-      toolBarSymbolOptions: {
-        normal: new SymbolGlyphModifier($r("sys.symbol.trash"))
-          .fontColor([$r("app.color.danger")])
-      }
-    })
+  private async refreshMediaBaseUrl(): Promise<void> {
+    try {
+      const config: WebsiteConfig = await SettingsApi.getWebsiteConfig()
+      this.mediaBaseUrl = this.normalizeMediaBaseUrl(config.r2Domain)
+    } catch (err) {
+      this.mediaBaseUrl = this.getAttachmentBaseUrl()
+    }
+    this.loadMailContent()
+  }
+
+  private loadMailContent(): void {
+    if (!this.isWebAttached) {
+      return
+    }
+    try {
+      this.webController.loadData(this.buildMailDocument(), 'text/html', 'UTF-8', ' ', ' ')
+    } catch (err) {
+      console.error('load mail html failed')
+    }
+  }
+
+  private buildMailDocument(): string {
+    const head: string = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0" ' +
+      'charset="utf-8"><style>html,body{height:auto!important;min-height:1px!important;margin:0;padding:0;' +
+      'background:transparent;color:CanvasText;color-scheme:light dark;overflow-wrap:anywhere;}' +
+      'img,video{display:block;max-width:100%!important;height:auto!important;}table{max-width:100%!important;}' +
+      'pre{white-space:pre-wrap;overflow-wrap:anywhere;}</style></head><body>'
+    const tail: string = '</body></html>'
+    if (this.isHtmlMail()) {
+      return head + this.normalizeMailContent(this.email.htmlContent) + tail
+    }
+    return head + '<pre>' + this.escapeHtml(this.email.body) + '</pre>' + tail
+  }
+
+  private normalizeMailContent(content: string): string {
+    const imageBaseUrl: string = this.mediaBaseUrl === '' ? this.getAttachmentBaseUrl() : this.mediaBaseUrl
+    return content.replaceAll('{{domain}}/', imageBaseUrl).replaceAll('{{domain}}', imageBaseUrl)
+  }
+
+  private normalizeMediaBaseUrl(domain: string): string {
+    let result: string = domain.trim()
+    if (result === '') {
+      return this.getAttachmentBaseUrl()
+    }
+    if (result.indexOf('http://') !== 0 && result.indexOf('https://') !== 0) {
+      result = 'https://' + result
+    }
+    if (result.lastIndexOf('/') !== result.length - 1) {
+      result += '/'
+    }
+    return result
+  }
+
+  private isHtmlMail(): boolean {
+    const content: string = this.email.htmlContent.trim().toLowerCase()
+    return content.indexOf('<html') >= 0 || content.indexOf('<body') >= 0 || content.indexOf('<div') >= 0 ||
+      content.indexOf('<p') >= 0 || content.indexOf('<img') >= 0 || content.indexOf('<table') >= 0 ||
+      content.indexOf('<br') >= 0 || content.indexOf('<style') >= 0 || content.indexOf('<!doctype') >= 0
+  }
+
+  private escapeHtml(value: string): string {
+    return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   }
 
   build() {
@@ -130,8 +190,19 @@ export struct DetailPageContent {
 
           Divider().strokeWidth(0.5).color($r("app.color.divider"))
 
-          Text(this.email.body).fontSize(15).fontColor($r("app.color.text_primary")).lineHeight(24)
-            .width("100%").padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 12, bottom: 12 })
+          Web({ src: 'about:blank', controller: this.webController, renderMode: RenderMode.SYNC_RENDER })
+            .width('100%')
+            .layoutMode(WebLayoutMode.FIT_CONTENT)
+            .overScrollMode(OverScrollMode.NEVER)
+            .javaScriptAccess(false)
+            .imageAccess(true)
+            .onlineImageAccess(true)
+            .mixedMode(MixedMode.All)
+            .backgroundColor(Color.Transparent)
+            .onControllerAttached(() => {
+              this.isWebAttached = true
+              this.loadMailContent()
+            })
 
           ForEach(this.email.attList, (att: string, index: number) => {
             Row() {
@@ -155,18 +226,24 @@ export struct DetailPageContent {
       }
       .width("100%").height("100%").scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
 
-        Column() {
-          ToolBar({
-            toolBarList: this.toolbarList,
-            toolBarModifier: this.toolBarModifier,
-            dividerModifier: this.dividerModifier
+        Row() {
+          HdsActionBar({
+            startButtons: this.startActions,
+            primaryButton: this.starAction,
+            endButtons: this.endActions,
+            actionBarStyle: new ActionBarStyle({
+              height: LengthMetrics.vp(64),
+              backgroundBlurStyle: BlurStyle.COMPONENT_THICK,
+              isPrimaryIconChanged: this.isStarred,
+              margin: LengthMetrics.vp(0)
+            }),
+            isExpand: true,
+            blurStrategy: BlurStrategy.ADAPTIVE
           })
         }
         .width("100%")
-        .borderRadius(24)
-        .clip(true)
+        .justifyContent(FlexAlign.Center)
         .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, bottom: 16 })
-        .shadow(Constants.SHADOW_CARD)
       }
       .width("100%").height("100%")
     }
@@ -216,7 +293,7 @@ export struct DetailPageContent {
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
       this.isStarred = this.email.starred
-      this.refreshToolbar()
+      this.loadMailContent()
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     }
   }
@@ -227,7 +304,7 @@ export struct DetailPageContent {
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
       this.isStarred = this.email.starred
-      this.refreshToolbar()
+      this.loadMailContent()
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     }
   }
@@ -246,7 +323,7 @@ export struct DetailPageContent {
       this.email = this.emailList[this.currentIndex]
       this.showDetail = false
       this.isStarred = this.email.starred
-      this.refreshToolbar()
+      this.loadMailContent()
       this.showToast('邮件已删除')
     } catch (err) {
       this.showRequestError(err)
@@ -287,7 +364,6 @@ export struct DetailPageContent {
       nextEmail.starred = nextStarred
       this.email = nextEmail
       this.isStarred = nextStarred
-      this.refreshToolbar()
       this.showToast(nextStarred ? '已加入星标' : '已取消星标')
     } catch (err) {
       this.showRequestError(err)
@@ -344,8 +420,10 @@ export struct DetailPageContent {
   }
 
   private getAttachmentUrl(key: string): string {
-    const apiIndex: number = Constants.API_URL.lastIndexOf('/api')
-    const host: string = apiIndex > 0 ? Constants.API_URL.substring(0, apiIndex) : Constants.API_URL
-    return host + '/oss/' + key
+    return this.getAttachmentBaseUrl() + key
+  }
+
+  private getAttachmentBaseUrl(): string {
+    return Constants.API_URL + '/oss/'
   }
 }

@@ -11,6 +11,7 @@ export struct DraftsPage {
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   @StorageLink('draftRevision') @Watch('onDraftRevision') draftRevision: number = 0
   @State draftList: MailDraft[] = []
+  @State isHeaderBlurred: boolean = false
 
   aboutToAppear(): void {
     this.refreshDrafts()
@@ -37,18 +38,19 @@ export struct DraftsPage {
   }
 
   build() {
-    Column() {
-      Text('草稿箱')
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
-        .width('100%')
-
+    Stack({ alignContent: Alignment.TopStart }) {
       if (this.draftList.length === 0) {
-        EmptyState({ icon: $r('sys.symbol.doc'), message: '暂无草稿' })
+        Column() {
+          EmptyState({ icon: $r('sys.symbol.doc'), message: '暂无草稿' })
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ top: 56 })
       } else {
         List({ scroller: this.scroller }) {
+          ListItem() {
+            Column().height(56)
+          }
           LazyForEach(this.dataSource, (item: MailDraft) => {
             ListItem() {
               Row() {
@@ -98,10 +100,44 @@ export struct DraftsPage {
           }
         }
         .width('100%')
-        .layoutWeight(1)
+        .height('100%')
         .scrollBar(BarState.Off)
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
+        .onDidScroll(() => {
+          this.isHeaderBlurred = this.scroller.currentOffset().yOffset > 0
+        })
+        .onReachStart(() => { this.isHeaderBlurred = false })
       }
+
+      Stack({ alignContent: Alignment.BottomStart }) {
+        if (this.isHeaderBlurred) {
+          Row()
+            .width('100%')
+            .height('100%')
+            .backgroundEffect({
+              radius: 30,
+              saturation: 1.0,
+              brightness: 1.0,
+              color: $r('app.color.glass_surface')
+            })
+            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        } else {
+          Row()
+            .width('100%')
+            .height('100%')
+            .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        }
+
+        Text('草稿箱')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+          .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
+          .width('100%')
+      }
+      .width('100%')
+      .height(56)
+        .zIndex(1)
     }
     .width('100%')
     .height('100%')

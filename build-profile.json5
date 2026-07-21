@@ -1,25 +1,21 @@
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\test\\.ohos\\config\\default_cloud_mail_for_harmonyos_jQ62IIR-_OotlhX9nIHNDdR9LNpbgsV8ryS4_CVK09Y=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001BBFC53BCB16F7855824F3749CBD8B870A8C855F10852C3AAEB4209937607E2B8D9584362802C0D7",
-          "profile": "C:\\Users\\test\\.ohos\\config\\default_cloud_mail_for_harmonyos_jQ62IIR-_OotlhX9nIHNDdR9LNpbgsV8ryS4_CVK09Y=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\test\\.ohos\\config\\default_cloud_mail_for_harmonyos_jQ62IIR-_OotlhX9nIHNDdR9LNpbgsV8ryS4_CVK09Y=.p12",
-          "storePassword": "0000001BE0B8BEA764B4B1B3B57D057EC783479EDA18F8CEFD551C67E99A3EC9D7FD584984C1AE5AA774F2"
-        }
-      }
-    ],
     "products": [
       {
         "name": "default",
-        "signingConfig": "default",
-        "targetSdkVersion": "26.0.0",
+        "targetSdkVersion": "6.1.0(23)",
+        "compatibleSdkVersion": "6.1.0(23)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      },
+      {
+        "name": "publish",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -47,7 +43,8 @@
         {
           "name": "default",
           "applyToProducts": [
-            "default"
+            "default",
+            "publish"
           ]
         }
       ]

@@ -91,25 +91,47 @@ export class HttpClient {
     try {
       let response: http.HttpResponse
       if (requiresAuthorization && token !== '') {
-        response = await request.request(url, {
-          method: method,
-          extraData: body,
-          expectDataType: http.HttpDataType.STRING,
-          usingCache: false,
-          connectTimeout: 10000,
-          readTimeout: 20000,
-          header: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': token }
-        })
+        if (body === '') {
+          response = await request.request(url, {
+            method: method,
+            expectDataType: http.HttpDataType.STRING,
+            usingCache: false,
+            connectTimeout: 10000,
+            readTimeout: 20000,
+            header: { 'Accept': 'application/json', 'Authorization': token }
+          })
+        } else {
+          response = await request.request(url, {
+            method: method,
+            extraData: body,
+            expectDataType: http.HttpDataType.STRING,
+            usingCache: false,
+            connectTimeout: 10000,
+            readTimeout: 20000,
+            header: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': token }
+          })
+        }
       } else {
-        response = await request.request(url, {
-          method: method,
-          extraData: body,
-          expectDataType: http.HttpDataType.STRING,
-          usingCache: false,
-          connectTimeout: 10000,
-          readTimeout: 20000,
-          header: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
-        })
+        if (body === '') {
+          response = await request.request(url, {
+            method: method,
+            expectDataType: http.HttpDataType.STRING,
+            usingCache: false,
+            connectTimeout: 10000,
+            readTimeout: 20000,
+            header: { 'Accept': 'application/json' }
+          })
+        } else {
+          response = await request.request(url, {
+            method: method,
+            extraData: body,
+            expectDataType: http.HttpDataType.STRING,
+            usingCache: false,
+            connectTimeout: 10000,
+            readTimeout: 20000,
+            header: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+          })
+        }
       }
       if (response.responseCode < 200 || response.responseCode >= 300) {
         if (response.responseCode === 401) {

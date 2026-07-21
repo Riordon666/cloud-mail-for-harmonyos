@@ -31,6 +31,13 @@ export class MailListDataSource implements IDataSource {
     this.notifyDataReload()
   }
 
+  appendData(data: MailItem[]): void {
+    for (let index = 0; index < data.length; index++) {
+      this.dataList.push(data[index])
+      this.notifyDataAdd(this.dataList.length - 1)
+    }
+  }
+
   updateItem(id: number, updatedItem: MailItem): void {
     for (let i = 0; i < this.dataList.length; i++) {
       if (this.dataList[i].id === id) {
@@ -60,6 +67,12 @@ export class MailListDataSource implements IDataSource {
   private notifyDataChange(index: number): void {
     for (let i = 0; i < this.listeners.length; i++) {
       this.listeners[i].onDataChange(index)
+    }
+  }
+
+  private notifyDataAdd(index: number): void {
+    for (let i = 0; i < this.listeners.length; i++) {
+      this.listeners[i].onDataAdd(index)
     }
   }
 

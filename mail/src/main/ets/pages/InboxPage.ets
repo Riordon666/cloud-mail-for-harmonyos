@@ -1,7 +1,7 @@
 ﻿import Constants from '../common/Constants'
 import { ApiException } from '../common/HttpClient'
 import { MailDetailParams, MailItem } from '../common/MailModels'
-import { MailService } from '../common/MailService'
+import { MailPage, MailService } from '../common/MailService'
 import { MailListDataSource } from '../common/MailListDataSource'
 import { PromptAction } from '@kit.ArkUI'
 import { EmailCard } from '../components/EmailCard'
@@ -13,8 +13,11 @@ export struct InboxPage {
   private dataSource: MailListDataSource = new MailListDataSource()
   @State searchText: string = ''
   @State isSearchFocused: boolean = false
+  @State isHeaderBlurred: boolean = false
   @State emailList: MailItem[] = []
   @State isLoading: boolean = false
+  @State isLoadingMore: boolean = false
+  @State hasMore: boolean = true
   @State refreshKey: number = 0
   private pathStack: NavPathStack = AppStorage.get('appPathStack') as NavPathStack
   private toast: PromptAction = this.getUIContext().getPromptAction()
@@ -26,13 +29,60 @@ export struct InboxPage {
   private async loadEmails(): Promise<void> {
     this.isLoading = true
     try {
-      this.emailList = await MailService.loadInbox()
+      const page: MailPage = await MailService.loadInboxPage(0)
+      this.emailList = page.items
+      this.hasMore = this.emailList.length < page.total && page.items.length > 0
       this.dataSource.setData(this.emailList)
     } catch (err) {
       this.showRequestError(err)
     } finally {
       this.isLoading = false
     }
+  }
+
+  private async loadMoreEmails(): Promise<void> {
+    if (this.isLoading || this.isLoadingMore || !this.hasMore || this.searchText.trim() !== '' || this.emailList.length === 0) {
+      return
+    }
+    this.isLoadingMore = true
+    try {
+      const cursor: number = this.emailList[this.emailList.length - 1].id
+      const page: MailPage = await MailService.loadInboxPage(cursor)
+      const appended: MailItem[] = this.removeLoadedItems(page.items)
+      if (appended.length > 0) {
+        const result: MailItem[] = []
+        for (let index = 0; index < this.emailList.length; index++) {
+          result.push(this.emailList[index])
+        }
+        for (let index = 0; index < appended.length; index++) {
+          result.push(appended[index])
+        }
+        this.emailList = result
+        this.dataSource.appendData(appended)
+      }
+      this.hasMore = page.items.length > 0 && this.emailList.length < page.total
+    } catch (err) {
+      this.showRequestError(err)
+    } finally {
+      this.isLoadingMore = false
+    }
+  }
+
+  private removeLoadedItems(items: MailItem[]): MailItem[] {
+    const result: MailItem[] = []
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      let exists: boolean = false
+      for (let loadedIndex = 0; loadedIndex < this.emailList.length; loadedIndex++) {
+        if (items[itemIndex].id === this.emailList[loadedIndex].id) {
+          exists = true
+          break
+        }
+      }
+      if (!exists) {
+        result.push(items[itemIndex])
+      }
+    }
+    return result
   }
 
   private getFiltered(): MailItem[] {
@@ -136,36 +186,7 @@ export struct InboxPage {
   }
 
   build() {
-    Column() {
-      Text('收件箱')
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
-        .width('100%')
-
-      Search({ value: this.searchText, placeholder: '搜索邮件', controller: this.searchController })
-        .searchIcon({ src: $r('sys.media.ohos_ic_public_search_filled'), size: 20 })
-        .cancelButton({
-          style: CancelButtonStyle.INPUT,
-          icon: { size: 18, color: $r('app.color.text_tertiary'), src: '' }
-        })
-        .placeholderColor($r('app.color.text_tertiary'))
-        .fontColor($r('app.color.text_primary'))
-        .backgroundColor($r('app.color.card'))
-        .border({
-          width: this.isSearchFocused ? 1 : 0.5,
-          color: this.isSearchFocused ? $r('app.color.primary') : $r('app.color.divider')
-        })
-        .borderRadius(Constants.RADIUS_BUTTON)
-        .shadow(Constants.SHADOW_CARD)
-        .height(48)
-        .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, bottom: 8 })
-        .animation({ duration: Constants.DURATION_NORMAL, curve: Curve.EaseOut })
-        .onChange((value: string) => { this.searchText = value })
-        .onFocus(() => { this.isSearchFocused = true })
-        .onBlur(() => { this.isSearchFocused = false })
-
+    Stack({ alignContent: Alignment.TopStart }) {
       if (this.isLoading) {
         Column() {
           Text('正在加载邮件…')
@@ -173,7 +194,8 @@ export struct InboxPage {
             .fontColor($r('app.color.text_tertiary'))
         }
         .width('100%')
-        .layoutWeight(1)
+        .height('100%')
+        .padding({ top: 120 })
         .justifyContent(FlexAlign.Center)
       } else if (this.getFiltered().length === 0) {
         Column() {
@@ -186,10 +208,14 @@ export struct InboxPage {
             .margin({ top: 12 })
         }
         .width('100%')
-        .layoutWeight(1)
+        .height('100%')
+        .padding({ top: 120 })
         .justifyContent(FlexAlign.Center)
       } else {
         List({ scroller: this.scroller }) {
+          ListItem() {
+            Column().height(124)
+          }
           LazyForEach(this.dataSource, (item: MailItem, index: number) => {
             ListItem() {
               EmailCard({
@@ -209,14 +235,85 @@ export struct InboxPage {
             })
           }, (item: MailItem): string => item.id.toString() + '_' + item.unread.toString() + '_' + item.starred.toString() + '_' + this.refreshKey.toString())
           ListItem() {
-            Column().height(Constants.PADDING_TAB_CONTENT_BOTTOM)
+            Column() {
+              if (this.isLoadingMore) {
+                LoadingProgress()
+                  .width(24)
+                  .height(24)
+                  .color($r('app.color.primary'))
+                  .margin({ top: 12 })
+              }
+            }
+            .width('100%')
+            .height(Constants.PADDING_TAB_CONTENT_BOTTOM)
+            .alignItems(HorizontalAlign.Center)
           }
         }
         .width('100%')
-        .layoutWeight(1)
+        .height('100%')
         .scrollBar(BarState.Off)
         .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE })
+        .onDidScroll(() => {
+          this.isHeaderBlurred = this.scroller.currentOffset().yOffset > 0
+        })
+        .onReachStart(() => { this.isHeaderBlurred = false })
+        .onReachEnd(() => { this.loadMoreEmails() })
       }
+
+      Column() {
+        Stack({ alignContent: Alignment.BottomStart }) {
+          if (this.isHeaderBlurred) {
+            Row()
+              .width('100%')
+              .height('100%')
+              .backgroundEffect({
+                radius: 30,
+                saturation: 1.0,
+                brightness: 1.0,
+                color: $r('app.color.glass_surface')
+              })
+              .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+          } else {
+            Row()
+              .width('100%')
+              .height('100%')
+              .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+          }
+
+          Text('收件箱')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_primary'))
+            .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 8 })
+            .width('100%')
+        }
+        .width('100%')
+        .height(56)
+
+        Search({ value: this.searchText, placeholder: '搜索邮件', controller: this.searchController })
+          .searchIcon({ src: $r('sys.media.ohos_ic_public_search_filled'), size: 20 })
+          .cancelButton({
+            style: CancelButtonStyle.INPUT,
+            icon: { size: 18, color: $r('app.color.text_tertiary'), src: '' }
+          })
+          .placeholderColor($r('app.color.text_tertiary'))
+          .fontColor($r('app.color.text_primary'))
+          .backgroundColor(Color.Transparent)
+          .backgroundBlurStyle(BlurStyle.COMPONENT_THICK)
+          .border({
+            width: this.isSearchFocused ? 1 : 0.5,
+            color: this.isSearchFocused ? $r('app.color.primary') : $r('app.color.divider')
+          })
+          .borderRadius(Constants.RADIUS_BUTTON)
+          .height(48)
+          .margin({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 4, bottom: 8 })
+          .animation({ duration: Constants.DURATION_NORMAL, curve: Curve.EaseOut })
+          .onChange((value: string) => { this.searchText = value })
+          .onFocus(() => { this.isSearchFocused = true })
+          .onBlur(() => { this.isSearchFocused = false })
+      }
+      .width('100%')
+      .zIndex(1)
     }
     .width('100%')
     .height('100%')

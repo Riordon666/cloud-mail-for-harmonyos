@@ -1,5 +1,6 @@
 ﻿import { PromptAction } from '@kit.ArkUI'
 import { ConfigurationConstant } from '@kit.AbilityKit'
+import { HdsListItemCard, IconSize, PrefixIcon, SuffixTextAndArrow } from '@kit.UIDesignKit'
 import Constants from '../common/Constants'
 import { AvatarBar } from '../components/AvatarBar'
 import { setAppColorMode } from '../mailability/MailAbility'
@@ -29,80 +30,115 @@ export struct SettingsPage {
 
   build() {
     Stack() {
-      Column() {
-        Text('个人设置')
-          .fontSize(Constants.FONT_SIZE_HERO)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.text_primary'))
-          .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 16 })
-          .width('100%')
-
-        Column() {
-          AvatarBar({ name: this.authEmail === '' ? 'admin@riordon.xyz' : this.authEmail, avatarSize: 72, fontSize: 32 })
-            .margin({ bottom: 16 })
-          Text(this.authEmail === '' ? 'admin@riordon.xyz' : this.authEmail)
-            .fontSize(Constants.FONT_SIZE_TITLE)
+      Scroll() {
+        Column({ space: Constants.GAP_MEDIUM }) {
+          Text('个人设置')
+            .fontSize(Constants.FONT_SIZE_HERO)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.text_primary'))
-          Text(this.authRole === 'admin' ? '管理员' : '普通用户')
-            .fontSize(Constants.FONT_SIZE_SMALL)
-            .fontColor($r('app.color.tag_text'))
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-            .borderRadius(Constants.RADIUS_SMALL)
-            .backgroundColor(this.authRole === 'admin' ? $r('app.color.primary_light') : $r('app.color.info'))
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 28 })
-        .alignItems(HorizontalAlign.Center)
+            .width('100%')
 
-        List() {
-          ListItem() { this.MenuItem('账号管理', '', () => { this.openAccountManagement() }) }
-          ListItem() { this.MenuItem('外观设置', this.getThemeLabel(), () => { this.showThemeDialog = true }) }
-          ListItem() { this.MenuItem('通知设置', '', () => { this.showToast('通知设置将在后续阶段开放') }) }
-          ListItem() { this.MenuItem('隐私政策', '', () => { this.showToast('隐私政策页面将在后续阶段开放') }) }
-          ListItem() { this.MenuItem('关于', 'v1.0.0', () => { this.showToast('Cloud Mail for HarmonyOS') }) }
+          Row({ space: Constants.GAP_MEDIUM }) {
+            AvatarBar({
+              name: this.authEmail === '' ? 'admin@riordon.xyz' : this.authEmail,
+              avatarSize: 64,
+              fontSize: 28
+            })
+            Column({ space: 6 }) {
+              Text(this.authEmail === '' ? 'admin@riordon.xyz' : this.authEmail)
+                .fontSize(Constants.FONT_SIZE_SUBTITLE)
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.text_primary'))
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Row({ space: Constants.GAP_SMALL }) {
+                Text(this.authRole === 'admin' ? '管理员' : '普通用户')
+                  .fontSize(Constants.FONT_SIZE_SMALL)
+                  .fontColor($r('app.color.tag_text'))
+                  .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                  .borderRadius(Constants.RADIUS_SMALL)
+                  .backgroundColor(this.authRole === 'admin' ? $r('app.color.primary_light') : $r('app.color.info'))
+                Text(this.getThemeLabel())
+                  .fontSize(Constants.FONT_SIZE_SMALL)
+                  .fontColor($r('app.color.text_secondary'))
+              }
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
+          }
+          .width('100%')
+          .padding(Constants.PADDING_EDGE)
+          .borderRadius(Constants.RADIUS_CARD)
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK,
+            { adaptiveColor: AdaptiveColor.DEFAULT })
+          .border({ width: 1, color: $r('app.color.divider') })
+
+          this.SectionTitle('账户与偏好')
+          Column() {
+            this.SettingsRow('账号管理', '主邮箱与副邮箱', '', $r('sys.symbol.person'), () => { this.openAccountManagement() })
+            Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+            this.SettingsRow('外观与主题', '主题与显示模式', this.getThemeLabel(), $r('sys.symbol.paintbrush'), () => { this.showThemeDialog = true })
+            Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+            this.SettingsRow('通知设置', '新邮件提醒', '', $r('sys.symbol.envelope'), () => { this.showToast('通知设置将在后续阶段开放') })
+          }
+          .width('100%')
+          .borderRadius(Constants.RADIUS_CARD)
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK,
+            { adaptiveColor: AdaptiveColor.DEFAULT })
+          .border({ width: 1, color: $r('app.color.divider') })
+
+          this.SectionTitle('隐私与支持')
+          Column() {
+            this.SettingsRow('隐私政策', '了解数据使用方式', '', $r('sys.symbol.lock_shield'), () => { this.showToast('隐私政策页面将在后续阶段开放') })
+            Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+            this.SettingsRow('关于', 'Cloud Mail for HarmonyOS', 'v1.0.0', $r('sys.symbol.questionmark_circle'), () => { this.showToast('Cloud Mail for HarmonyOS') })
+          }
+          .width('100%')
+          .borderRadius(Constants.RADIUS_CARD)
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK,
+            { adaptiveColor: AdaptiveColor.DEFAULT })
+          .border({ width: 1, color: $r('app.color.divider') })
 
           if (this.authRole === 'admin') {
-            ListItem() {
-              Text('管理员功能')
-                .fontSize(Constants.FONT_SIZE_SMALL)
-                .fontColor($r('app.color.text_tertiary'))
-                .fontWeight(FontWeight.Medium)
-                .padding({ left: Constants.PADDING_EDGE, top: 16, bottom: 6 })
-                .width('100%')
-            }
-
-            ListItem() { this.MenuItem('系统设置', '', () => { this.openSystemSettings() }) }
-            ListItem() { this.MenuItem('用户管理', '', () => { this.openUserManagement() }) }
-            ListItem() { this.MenuItem('全部邮件', '', () => { this.openGlobalMailManagement() }) }
-            ListItem() { this.MenuItem('角色权限', '', () => { this.openRoleManagement() }) }
-            ListItem() { this.MenuItem('数据分析', '', () => { this.openAnalytics() }) }
-            ListItem() { this.MenuItem('注册码管理', '', () => { this.openRegistrationCodeManagement() }) }
-          }
-
-          ListItem() {
-            Row() {
-              Text('退出登录')
-                .fontSize(Constants.FONT_SIZE_SUBTITLE)
-                .fontColor($r('app.color.danger'))
+            this.SectionTitle('管理员专区')
+            Column() {
+              this.SettingsRow('系统设置', '网站与注册策略', '', $r('sys.symbol.gearshape'), () => { this.openSystemSettings() })
+              Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+              this.SettingsRow('用户管理', '用户状态与角色', '', $r('sys.symbol.person'), () => { this.openUserManagement() })
+              Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+              this.SettingsRow('全部邮件', '全局邮件管理', '', $r('sys.symbol.envelope'), () => { this.openGlobalMailManagement() })
+              Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+              this.SettingsRow('角色权限', '角色与权限树', '', $r('sys.symbol.person_fill'), () => { this.openRoleManagement() })
+              Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+              this.SettingsRow('数据分析', '平台数据概览', '', $r('sys.symbol.doc'), () => { this.openAnalytics() })
+              Divider().color($r('app.color.divider')).margin({ left: 56, right: 16 })
+              this.SettingsRow('注册码管理', '生成与使用记录', '', $r('sys.symbol.star_fill'), () => { this.openRegistrationCodeManagement() })
             }
             .width('100%')
-            .justifyContent(FlexAlign.Center)
-            .padding({ top: 28, bottom: 8 })
+            .borderRadius(Constants.RADIUS_CARD)
+            .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK,
+              { adaptiveColor: AdaptiveColor.DEFAULT })
+            .border({ width: 1, color: $r('app.color.divider') })
+          }
+
+          Button('退出登录', { type: ButtonType.Capsule, stateEffect: true })
+            .width('100%')
+            .height(48)
+            .fontSize(Constants.FONT_SIZE_SUBTITLE)
+            .fontColor($r('app.color.danger'))
+            .backgroundColor($r('app.color.card'))
+            .margin({ top: Constants.GAP_SMALL })
             .onClick(() => { this.showLogoutConfirm = true })
-          }
-          ListItem() {
-            Column().height(Constants.PADDING_TAB_CONTENT_BOTTOM)
-          }
+
+          Blank().height(Constants.PADDING_TAB_CONTENT_BOTTOM)
         }
         .width('100%')
-        .layoutWeight(1)
-        .backgroundColor($r('app.color.card'))
-        .borderRadius({ topLeft: 20, topRight: 20 })
+        .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 16 })
       }
       .width('100%')
       .height('100%')
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
       .backgroundColor($r('app.color.background'))
 
       if (this.showLogoutConfirm) {
@@ -115,6 +151,75 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private SectionTitle(title: string) {
+    Text(title)
+      .fontSize(Constants.FONT_SIZE_SMALL)
+      .fontWeight(FontWeight.Medium)
+      .fontColor($r('app.color.text_tertiary'))
+      .width('100%')
+      .padding({ left: 4, top: 4 })
+  }
+
+  @Builder
+  private SettingsRow(title: string, description: string, value: string, icon: Resource, onItemClick: () => void) {
+    Row() {
+      SymbolGlyph(icon)
+        .fontSize(Constants.SIZE_ICON_MEDIUM)
+        .fontColor([$r('app.color.text_primary')])
+        .width(32)
+        .margin({ right: 12 })
+
+      Column({ space: 3 }) {
+        Text(title)
+          .fontSize(Constants.FONT_SIZE_SUBTITLE)
+          .fontColor($r('app.color.text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(description)
+          .fontSize(Constants.FONT_SIZE_SMALL)
+          .fontColor($r('app.color.text_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      if (value !== '') {
+        Text(value)
+          .fontSize(Constants.FONT_SIZE_SMALL)
+          .fontColor($r('app.color.text_secondary'))
+          .margin({ right: 6 })
+      }
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(Constants.SIZE_ICON_SMALL)
+        .fontColor([$r('app.color.text_tertiary')])
+    }
+    .width('100%')
+    .height(68)
+    .padding({ left: 16, right: 16 })
+    .onClick(onItemClick)
+  }
+
+  @Builder
+  private SettingsCard(title: string, description: string, value: string, icon: ResourceStr, onItemClick: () => void) {
+    HdsListItemCard({
+      prefixItem: new PrefixIcon({
+        iconSize: IconSize.SYSTEM_ICON,
+        iconValue: { symbol: icon }
+      }),
+      textItem: {
+        primaryText: { text: title },
+        secondaryText: { text: description }
+      },
+      suffixItem: new SuffixTextAndArrow({ text: value }),
+      cardHeight: 72,
+      cardBackgroundColor: $r('app.color.card'),
+      cardBorderRadius: Constants.RADIUS_CARD,
+      onClick: onItemClick
+    })
   }
 
   @Builder
@@ -218,32 +323,6 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
-  }
-
-  @Builder
-  MenuItem(title: string, value: string, onItemClick?: () => void) {
-    Row() {
-      Text(title)
-        .fontSize(Constants.FONT_SIZE_SUBTITLE)
-        .fontColor($r('app.color.text_primary'))
-      Blank()
-      if (value !== '') {
-        Text(value)
-          .fontSize(Constants.FONT_SIZE_COMMON)
-          .fontColor($r('app.color.text_tertiary'))
-          .margin({ right: 8 })
-      }
-      SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(Constants.SIZE_ICON_SMALL)
-        .fontColor([$r('app.color.text_tertiary')])
-    }
-    .width('100%')
-    .padding({ left: Constants.PADDING_EDGE, right: Constants.PADDING_EDGE, top: 16, bottom: 16 })
-    .onClick(() => {
-      if (onItemClick) {
-        onItemClick()
-      }
-    })
   }
 
   private getThemeLabel(): string {

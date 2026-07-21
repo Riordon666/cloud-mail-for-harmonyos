@@ -10,6 +10,7 @@ import { PushService } from '../common/PushService'
 const PREF_NAME: string = 'cloud_mail_settings'
 
 let appContext: Context | null = null
+let mainWindow: window.Window | null = null
 
 export function setAppContext(ctx: Context): void {
   appContext = ctx
@@ -30,6 +31,13 @@ export default class MailAbility extends UIAbility {
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         console.error('loadContent failed: ' + JSON.stringify(err))
+        return
+      }
+      try {
+        mainWindow = windowStage.getMainWindowSync()
+        updateSystemBarForMode(AppStorage.get('currentColorMode') as number)
+      } catch (windowErr) {
+        console.error('configure system bar failed: ' + JSON.stringify(windowErr))
       }
     })
   }
@@ -45,6 +53,7 @@ export default class MailAbility extends UIAbility {
         this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
       }
       AppStorage.setOrCreate('currentColorMode', mode)
+      updateSystemBarForMode(mode)
     } catch (err) {
       try {
         this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
@@ -71,7 +80,22 @@ export async function setAppColorMode(mode: number): Promise<void> {
     await dataPref.flush()
     appContext.getApplicationContext().setColorMode(mode)
     AppStorage.set('currentColorMode', mode)
+    updateSystemBarForMode(mode)
   } catch (err) {
     console.error('setAppColorMode failed: ' + JSON.stringify(err))
   }
+}
+
+function updateSystemBarForMode(mode: number): void {
+  if (mainWindow === null) {
+    return
+  }
+  const isDark: boolean = mode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+  mainWindow.setWindowSystemBarProperties({
+    // 与 app.color.background 保持一致；页面仍由安全区布局，只有背景绘制延伸到状态栏。
+    statusBarColor: isDark ? '#0D0D0D' : '#F1F3F5',
+    statusBarContentColor: isDark ? '#E8E8E8' : '#1A1A1A'
+  }).catch((err: Error) => {
+    console.error('update system bar failed: ' + JSON.stringify(err))
+  })
 }
