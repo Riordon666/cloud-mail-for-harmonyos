@@ -11,6 +11,7 @@ export class PlatformSessionService {
     let nickName: string = ''
     let avatarUrl: string = ''
     let huaweiUserId: string = ''
+    let reauthRequired: boolean = false
     try {
       PlatformSessionService.platformPreferences = preferences.getPreferencesSync(
         context, { name: 'cloud_mail_platform' })
@@ -18,6 +19,7 @@ export class PlatformSessionService {
       nickName = PlatformSessionService.platformPreferences.getSync('nickName', '') as string
       avatarUrl = PlatformSessionService.platformPreferences.getSync('avatarUrl', '') as string
       huaweiUserId = PlatformSessionService.platformPreferences.getSync('huaweiUserId', '') as string
+      reauthRequired = PlatformSessionService.platformPreferences.getSync('reauthRequired', false) as boolean
     } catch (err) {
       console.error('initialize platform session failed')
     }
@@ -26,6 +28,8 @@ export class PlatformSessionService {
     AppStorage.setOrCreate('platformNickName', nickName)
     AppStorage.setOrCreate('platformAvatarUrl', avatarUrl)
     AppStorage.setOrCreate('platformHuaweiUserId', huaweiUserId)
+    AppStorage.setOrCreate('platformReauthRequired', reauthRequired ||
+      (huaweiUserId !== '' && SecureTokenStore.getPlatformToken() === ''))
     AppStorage.setOrCreate('platformRevision', 0)
   }
 
@@ -33,6 +37,19 @@ export class PlatformSessionService {
     SecureTokenStore.savePlatformToken(payload.token)
     PlatformSessionService.applyUser(payload.user)
     AppStorage.set('platformToken', payload.token)
+    PlatformSessionService.setReauthorizationRequired(false)
+    PlatformSessionService.notifyChanged()
+  }
+
+  // Token expiry is not a change of owner. Retain the verified public identity for reauthorization.
+  static invalidateToken(): void {
+    SecureTokenStore.removePlatformToken()
+    AppStorage.set('platformToken', '')
+  }
+
+  static requireReauthorization(): void {
+    PlatformSessionService.invalidateToken()
+    PlatformSessionService.setReauthorizationRequired(true)
     PlatformSessionService.notifyChanged()
   }
 
@@ -43,6 +60,7 @@ export class PlatformSessionService {
     AppStorage.set('platformNickName', '')
     AppStorage.set('platformAvatarUrl', '')
     AppStorage.set('platformHuaweiUserId', '')
+    AppStorage.set('platformReauthRequired', false)
     PlatformSessionService.notifyChanged()
     if (PlatformSessionService.platformPreferences === null) {
       return
@@ -80,6 +98,22 @@ export class PlatformSessionService {
     return value === undefined ? '' : value
   }
 
+  static updateRole(role: string): void {
+    if (role !== 'MEMBER' && role !== 'SUPER_ADMIN') {
+      return
+    }
+    AppStorage.set('platformRole', role)
+    if (PlatformSessionService.platformPreferences !== null) {
+      try {
+        PlatformSessionService.platformPreferences.putSync('role', role)
+        PlatformSessionService.platformPreferences.flushSync()
+      } catch (err) {
+        console.error('save platform role failed')
+      }
+    }
+    PlatformSessionService.notifyChanged()
+  }
+
   private static applyUser(user: PlatformUser): void {
     AppStorage.set('platformRole', user.platformRole)
     AppStorage.set('platformNickName', user.nickName)
@@ -96,6 +130,19 @@ export class PlatformSessionService {
       PlatformSessionService.platformPreferences.flushSync()
     } catch (err) {
       console.error('save platform profile failed')
+    }
+  }
+
+  private static setReauthorizationRequired(required: boolean): void {
+    AppStorage.setOrCreate('platformReauthRequired', required)
+    if (PlatformSessionService.platformPreferences === null) {
+      return
+    }
+    try {
+      PlatformSessionService.platformPreferences.putSync('reauthRequired', required)
+      PlatformSessionService.platformPreferences.flushSync()
+    } catch (err) {
+      console.error('save platform reauthorization state failed')
     }
   }
 

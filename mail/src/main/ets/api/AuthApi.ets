@@ -1,5 +1,7 @@
 ﻿import { ApiException, ApiResponse, HttpClient } from '../common/HttpClient'
 
+import { ExternalHttpClient } from '../common/ExternalHttpClient'
+
 class LoginRequest {
   email: string
   password: string
@@ -185,8 +187,9 @@ export class AuthApi {
     return new AuthUserInfo(payload.email, role, roleName, payload.account.accountId)
   }
 
-  static async logout(token: string): Promise<void> {
-    await HttpClient.delete('/logout', true, token)
+  static async logout(apiBaseUrl: string, token: string): Promise<void> {
+    // Both values belong to the session captured before local sign-out.
+    await ExternalHttpClient.delete(apiBaseUrl, '/logout', token)
   }
 
   private static isAdministrator(payload: RemoteUserPayload): boolean {

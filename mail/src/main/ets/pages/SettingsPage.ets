@@ -15,13 +15,15 @@ import {
 } from '@kit.UIDesignKit'
 import Constants from '../common/Constants'
 import { HuaweiAccountApi, HuaweiAccountBinding } from '../api/HuaweiAccountApi'
-import { ProfileApi } from '../api/ProfileApi'
+import { ProfileApi, ProfileTarget } from '../api/ProfileApi'
 import { DateTimeUtils } from '../common/DateTimeUtils'
 import { HuaweiAccountCache } from '../common/HuaweiAccountCache'
 import { MailStatsStore } from '../common/MailStatsStore'
 import { InstanceService } from '../common/InstanceService'
 import { InstanceRegistry } from '../common/InstanceRegistry'
 import { SessionService } from '../common/SessionService'
+import { PlatformSessionService } from '../common/PlatformSessionService'
+import { AccountBindingCleanup } from '../common/AccountBindingCleanup'
 import { setAppColorMode } from '../mailability/MailAbility'
 
 class ChangeLogItem {
@@ -49,6 +51,9 @@ export struct SettingsPage {
   @StorageLink('platformRole') platformRole: string = 'MEMBER'
   @StorageLink('authRoleName') authRoleName: string = '普通用户'
   @StorageLink('sessionRevision') @Watch('onSessionRevisionChanged') sessionRevision: number = 0
+  @StorageLink('platformRevision') @Watch('onPlatformRevisionChanged') platformRevision: number = 0
+  @StorageLink('activeInstanceName') activeInstanceName: string = ''
+  @State profileTarget: ProfileTarget = new ProfileTarget()
   @StorageLink('currentColorMode') currentColorMode: number = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
   @State showLogoutConfirm: boolean = false
   @State showAboutSheet: boolean = false
@@ -82,6 +87,17 @@ export struct SettingsPage {
   private readonly repositoryUrl: string = 'https://github.com/Riordon666/cloud-mail-for-harmonyos'
   private readonly telegramGroupUrl: string = 'https://t.me/CloudMailforHarmonyOSGroup'
   private readonly changeLogs: ChangeLogItem[] = [
+    new ChangeLogItem('1.2.2', '2026.09.26', [
+      '新增登录页切换实例的功能',
+      '修复了切换未登录实例时导致当前邮箱退出的问题',
+      '修复了退出第三方实例时注销请求发送到错误服务的问题',
+      '修复了绑定流程中断后重启应用可能进入错误实例的问题',
+      '修复了第三方实例用户华为账号授权过期后无法恢复的问题',
+      '修复了账号设置未跟随当前实例、修改密码和删除账户目标不一致的问题',
+      '修复了仅绑定第三方实例时个人设置不显示华为头像和昵称的问题',
+      '修复了删除邮箱账户后残留华为绑定、影响后续登录的问题',
+      '优化登录响应速度，减少已绑定主邮箱的重复验证和同账号重复资料授权'
+    ]),
     new ChangeLogItem('1.2.1', '2026.09.12', [
       '优化邮件列表加载，支持兼容服务的摘要读取与按需正文缓存',
       '支持继续加载历史邮件，并完善邮件全文搜索',
@@ -150,6 +166,7 @@ export struct SettingsPage {
   onOpenAccountCenter?: () => void
 
   aboutToAppear(): void {
+    AccountBindingCleanup.initialize(this.getUIContext().getHostContext() as common.UIAbilityContext)
     if (this.currentColorMode === undefined || this.currentColorMode === null) {
       this.currentColorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
     }
@@ -161,7 +178,13 @@ export struct SettingsPage {
   }
 
   private onSessionRevisionChanged(): void {
+    this.showPasswordDialog = false
+    this.showDeleteAccountDialog = false
     this.userCreateTime = ''
+    this.loadHuaweiIdentity(true)
+  }
+
+  private onPlatformRevisionChanged(): void {
     this.loadHuaweiIdentity(true)
   }
 
@@ -649,7 +672,7 @@ export struct SettingsPage {
   }
 
   @Builder
-  private AccountCenterActionRow(title: string, description: string, icon: Resource, action: () => void) {
+  private AccountCenterActionRow(title: ResourceStr, description: ResourceStr, icon: Resource, action: () => void) {
     Row() {
       SymbolGlyph(icon)
         .fontSize(Constants.SIZE_ICON_MEDIUM)
@@ -686,7 +709,9 @@ export struct SettingsPage {
             Column() {
               this.ProfileInfoRow('华为账号', this.getHuaweiDisplayName())
               Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
-              this.ProfileInfoRow('主邮箱', this.getPrimaryEmailValue())
+              this.ProfileInfoRow($r('app.string.profile_current_service'), this.activeInstanceName)
+              Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
+              this.ProfileInfoRow($r('app.string.profile_current_mailbox'), this.getPrimaryEmailValue())
             }
             .width('100%')
             .backgroundColor($r('app.color.card'))
@@ -695,10 +720,8 @@ export struct SettingsPage {
 
             this.SectionTitle('安全设置')
             Column() {
-              this.AccountCenterActionRow('修改密码', '设置新的邮箱账户密码', $r('sys.symbol.lock'), () => {
-                this.newPassword = ''
-                this.confirmPassword = ''
-                this.showPasswordDialog = true
+              this.AccountCenterActionRow('修改密码', $r('app.string.profile_password_scope'), $r('sys.symbol.lock'), () => {
+                this.openProfileDialog(false)
               })
             }
             .width('100%')
@@ -713,7 +736,7 @@ export struct SettingsPage {
                   .fontSize(Constants.FONT_SIZE_SUBTITLE)
                   .fontWeight(FontWeight.Bold)
                   .fontColor($r('app.color.danger'))
-                Text('此操作将永久停用邮箱账户并解除华为账号绑定，无法恢复。')
+                Text($r('app.string.profile_delete_scope'))
                   .fontSize(Constants.FONT_SIZE_SMALL)
                   .fontColor($r('app.color.text_secondary'))
               }
@@ -724,7 +747,7 @@ export struct SettingsPage {
                 .height(44)
                 .fontColor($r('sys.color.icon_on_primary'))
                 .backgroundColor($r('app.color.danger'))
-                .onClick(() => { this.showDeleteAccountDialog = true })
+                .onClick(() => { this.openProfileDialog(true) })
             }
             .width('100%')
             .padding(Constants.PADDING_EDGE)
@@ -814,7 +837,7 @@ export struct SettingsPage {
   }
 
   @Builder
-  private ProfileInfoRow(label: string, value: string) {
+  private ProfileInfoRow(label: ResourceStr, value: string) {
     Row({ space: Constants.GAP_MEDIUM }) {
       Text(label)
         .fontSize(Constants.FONT_SIZE_COMMON)
@@ -846,6 +869,11 @@ export struct SettingsPage {
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
           .width('100%')
+        Text(this.profileTarget.displayName + ' · ' + this.profileTarget.email)
+          .fontSize(Constants.FONT_SIZE_SMALL)
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+          .wordBreak(WordBreak.BREAK_ALL)
         TextInput({ text: this.newPassword, placeholder: '输入新密码（至少6位）' })
           .type(InputType.Password)
           .height(48)
@@ -900,7 +928,7 @@ export struct SettingsPage {
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
           .width('100%')
-        Text('账户、邮箱数据及华为账号绑定将无法恢复。确定继续吗？')
+        Text($r('app.string.profile_delete_target_confirm', this.profileTarget.displayName, this.profileTarget.email))
           .fontSize(Constants.FONT_SIZE_COMMON)
           .fontColor($r('app.color.text_secondary'))
           .width('100%')
@@ -1372,7 +1400,7 @@ export struct SettingsPage {
       return info.versionName
     } catch (err) {
       console.error('get app version failed')
-      return '1.2.1'
+      return '1.2.2'
     }
   }
 
@@ -1383,7 +1411,7 @@ export struct SettingsPage {
       return info.versionCode
     } catch (err) {
       console.error('get app version code failed')
-      return 1020001
+      return 1020002
     }
   }
 
@@ -1486,31 +1514,40 @@ export struct SettingsPage {
     const sourceToken: string = InstanceService.getAnchorToken()
     const requestRevision: number = this.sessionRevision
     const requestId: number = ++this.identityRequestSequence
-    const cachedBinding: HuaweiAccountBinding | null = HuaweiAccountCache.load(context, ownerEmail)
-    if (cachedBinding !== null) {
+    const identity: string = PlatformSessionService.getHuaweiUserId()
+    const cacheOwner: string = identity === '' ? ownerEmail : identity + '|' + ownerEmail
+    this.applyPlatformIdentity()
+    if (ownerEmail === '' || sourceToken === '') {
+      this.huaweiIdentityLoaded = true
+      return
+    }
+    const cachedBinding: HuaweiAccountBinding | null = HuaweiAccountCache.load(context, cacheOwner)
+    if (cachedBinding !== null && cachedBinding.primaryEmail === ownerEmail) {
       this.applyHuaweiIdentity(cachedBinding, false)
       if (this.canUseAnchorAccountData(cachedBinding.primaryEmail)) {
         MailStatsStore.syncMissing(cachedBinding.receiveCount, cachedBinding.sentCount, cachedBinding.starCount)
       }
       this.huaweiIdentityLoaded = true
     }
-    if (!forceRefresh && !HuaweiAccountCache.shouldRefresh(ownerEmail)) {
+    if (!forceRefresh && !HuaweiAccountCache.shouldRefresh(cacheOwner)) {
       this.huaweiIdentityLoaded = true
       return
     }
     try {
       const binding: HuaweiAccountBinding | null = await HuaweiAccountApi.current()
       if (requestId !== this.identityRequestSequence || requestRevision !== this.sessionRevision ||
-        ownerEmail !== InstanceService.getAnchorEmail() || sourceToken !== InstanceService.getAnchorToken()) {
+        ownerEmail !== InstanceService.getAnchorEmail() || sourceToken !== InstanceService.getAnchorToken() ||
+        identity !== PlatformSessionService.getHuaweiUserId()) {
         return
       }
       this.huaweiIdentityLoaded = true
-      if (binding === null) {
+      // /huawei/me exposes a masked display ID, not the full platform identity.
+      if (binding === null || binding.primaryEmail !== ownerEmail) {
         return
       }
       this.applyHuaweiIdentity(binding)
-      HuaweiAccountCache.save(context, ownerEmail, binding)
-      HuaweiAccountCache.markRefreshed(ownerEmail)
+      HuaweiAccountCache.save(context, cacheOwner, binding)
+      HuaweiAccountCache.markRefreshed(cacheOwner)
     } catch (err) {
       if (requestId === this.identityRequestSequence) {
         this.huaweiIdentityLoaded = true
@@ -1520,14 +1557,29 @@ export struct SettingsPage {
   }
 
   private applyHuaweiIdentity(binding: HuaweiAccountBinding, syncStats: boolean = true): void {
-    this.huaweiNickName = binding.nickName
-    this.huaweiAvatarUrl = binding.avatarUrl
+    this.huaweiNickName = PlatformSessionService.getNickName() === '' ?
+      binding.nickName : PlatformSessionService.getNickName()
+    this.huaweiAvatarUrl = PlatformSessionService.getAvatarUrl() === '' ?
+      binding.avatarUrl : PlatformSessionService.getAvatarUrl()
     this.huaweiPrimaryEmail = binding.primaryEmail
-    this.huaweiUserId = binding.huaweiUserId
+    this.huaweiUserId = PlatformSessionService.getHuaweiUserId() === '' ?
+      binding.huaweiUserId : PlatformSessionService.getHuaweiUserId()
     this.userCreateTime = this.canUseAnchorAccountData(binding.primaryEmail) ? binding.userCreateTime : ''
     if (syncStats && this.canUseAnchorAccountData(binding.primaryEmail)) {
       MailStatsStore.sync(binding.receiveCount, binding.sentCount, binding.starCount)
     }
+  }
+
+  private applyPlatformIdentity(): void {
+    const identity: string = PlatformSessionService.getHuaweiUserId()
+    if (this.huaweiUserId !== identity) {
+      this.huaweiPrimaryEmail = ''
+      this.userCreateTime = ''
+    }
+    this.huaweiUserId = identity
+    this.huaweiNickName = PlatformSessionService.getNickName()
+    this.huaweiAvatarUrl = PlatformSessionService.getAvatarUrl()
+    if (identity !== '') { this.huaweiIdentityLoaded = true }
   }
 
   private getHuaweiDisplayName(): string {
@@ -1537,14 +1589,14 @@ export struct SettingsPage {
     if (this.huaweiNickName !== '') {
       return this.huaweiNickName
     }
-    return '华为账号资料待更新'
+    return this.getUIContext().getHostContext()!.resourceManager.getStringSync($r('app.string.account_huawei_user').id)
   }
 
   private getHuaweiBindingText(): string {
     if (!this.huaweiIdentityLoaded) {
       return '正在读取绑定信息'
     }
-    const email: string = this.huaweiPrimaryEmail === '' ? this.authEmail : this.huaweiPrimaryEmail
+    const email: string = this.authEmail
     return email === '' ? '暂未绑定主邮箱' : '主邮箱：' + email
   }
 
@@ -1554,7 +1606,7 @@ export struct SettingsPage {
   }
 
   private getPrimaryEmailValue(): string {
-    return this.huaweiPrimaryEmail === '' ? this.authEmail : this.huaweiPrimaryEmail
+    return this.authEmail
   }
 
   private getRegistrationTime(): string {
@@ -1578,6 +1630,7 @@ export struct SettingsPage {
   }
 
   private async changePassword(): Promise<void> {
+    if (this.profileSubmitting) { return }
     if (this.newPassword.length < 6) {
       this.showToast('新密码至少需要6位')
       return
@@ -1588,7 +1641,7 @@ export struct SettingsPage {
     }
     this.profileSubmitting = true
     try {
-      await ProfileApi.resetPassword(this.newPassword)
+      await ProfileApi.resetPassword(this.newPassword, this.profileTarget)
       this.showPasswordDialog = false
       this.newPassword = ''
       this.confirmPassword = ''
@@ -1601,22 +1654,35 @@ export struct SettingsPage {
   }
 
   private async deleteAccount(): Promise<void> {
+    if (this.profileSubmitting) { return }
+    const target: ProfileTarget = this.profileTarget
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
     this.profileSubmitting = true
     try {
-      await ProfileApi.deleteAccount()
+      const bindingRemoved: boolean = await ProfileApi.deleteAccount(target)
       this.showDeleteAccountDialog = false
       this.showPersonalSettingsSheet = false
       this.showAccountCenterSheet = false
-      const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
-      HuaweiAccountCache.clear(context, this.authEmail)
-      this.showToast('账户已删除')
-      if (this.onLogout) {
-        this.onLogout()
+      if (target.instanceId === InstanceRegistry.getDefaultInstanceId()) {
+        HuaweiAccountCache.clear(context, target.huaweiUserId + '|' + target.email)
       }
+      this.showToast(bindingRemoved ? $r('app.string.profile_deleted') : $r('app.string.profile_deleted_pending'))
     } catch (err) {
       this.showToast(err instanceof Error && err.message !== '' ? err.message : '删除账户失败，请重试')
     } finally {
       this.profileSubmitting = false
+    }
+  }
+
+  private openProfileDialog(deleting: boolean): void {
+    try {
+      this.profileTarget = ProfileApi.captureTarget()
+      this.newPassword = ''
+      this.confirmPassword = ''
+      this.showDeleteAccountDialog = deleting
+      this.showPasswordDialog = !deleting
+    } catch (err) {
+      this.showToast(err instanceof Error ? err.message : $r('app.string.profile_unavailable'))
     }
   }
 

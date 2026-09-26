@@ -14,6 +14,7 @@ import {
 } from './InstanceModels'
 import { PlatformSessionService } from './PlatformSessionService'
 import { SessionService } from './SessionService'
+import Constants from './Constants'
 
 class InstanceLoginRequest {
   email: string
@@ -27,6 +28,11 @@ class InstanceLoginRequest {
 
 class InstanceLoginPayload {
   token: string = ''
+}
+
+class BindingRemovalPayload {
+  instanceId: string = ''
+  platformRole: string = ''
 }
 
 class InstanceRemoteAccount {
@@ -62,21 +68,49 @@ export class InstanceService {
   }
 
   static async ensurePlatformSession(forceRefresh: boolean = false): Promise<boolean> {
-    if (!forceRefresh && PlatformSessionService.getToken() !== '') {
+    const expectedHuaweiId: string = PlatformSessionService.getHuaweiUserId()
+    if (expectedHuaweiId === '' && SessionService.getToken() !== '' &&
+      SessionService.getActiveInstanceId() !== InstanceRegistry.getDefaultInstanceId()) {
+      // Old broken sessions lost their owner record. Do not infer their identity from another mailbox.
+      PlatformSessionService.requireReauthorization()
+      return false
+    }
+    if (!forceRefresh && expectedHuaweiId !== '' && PlatformSessionService.getToken() !== '') {
       return true
     }
     if (forceRefresh) {
-      PlatformSessionService.clear()
+      PlatformSessionService.invalidateToken()
     }
+    const expectedPlatformToken: string = PlatformSessionService.getToken()
+    const revision: number = InstanceService.sessionRevision()
     const defaultToken: string = SessionService.getInstanceToken(InstanceRegistry.getDefaultInstanceId())
     if (defaultToken === '') {
+      if (SessionService.getToken() !== '') {
+        PlatformSessionService.requireReauthorization()
+      }
       return false
     }
     try {
       const payload: PlatformLoginPayload = await PlatformApi.loginThroughAnchor(defaultToken)
+      if (expectedHuaweiId !== PlatformSessionService.getHuaweiUserId() ||
+        expectedPlatformToken !== PlatformSessionService.getToken() ||
+        revision !== InstanceService.sessionRevision() ||
+        defaultToken !== SessionService.getInstanceToken(InstanceRegistry.getDefaultInstanceId())) {
+        return false
+      }
+      if (!payload.user || typeof payload.user.huaweiUserId !== 'string' || payload.user.huaweiUserId === '' ||
+        (expectedHuaweiId !== '' && payload.user.huaweiUserId !== expectedHuaweiId)) {
+        throw new ApiException(409, '主服务与当前华为身份不一致，请重新授权', false)
+      }
       PlatformSessionService.save(payload)
       return true
     } catch (err) {
+      if (expectedHuaweiId === PlatformSessionService.getHuaweiUserId() &&
+        expectedPlatformToken === PlatformSessionService.getToken() && revision === InstanceService.sessionRevision() &&
+        defaultToken === SessionService.getInstanceToken(InstanceRegistry.getDefaultInstanceId()) &&
+        SessionService.getToken() !== '') {
+        PlatformSessionService.requireReauthorization()
+      }
       console.error('platform anchor login failed')
       return false
     }
@@ -95,6 +129,33 @@ export class InstanceService {
     return InstanceService.withPlatformSession((token: string): Promise<PlatformBinding[]> => {
       return PlatformApi.myBindings(token)
     })
+  }
+
+  static async unlinkMyBinding(instanceId: string, expectedHuaweiUserId: string,
+    expectedEmail: string, bindingId: number, verifiedTime: string): Promise<void> {
+    if (instanceId === '' || expectedHuaweiUserId === '' || expectedEmail === '' ||
+      !Number.isSafeInteger(bindingId) || bindingId <= 0 || verifiedTime === '') {
+      throw new ApiException(400, '邮箱绑定标识无效', false)
+    }
+    let responseToken: string = ''
+    const response: ApiResponse = await InstanceService.withPlatformSession((token: string): Promise<ApiResponse> => {
+      if (PlatformSessionService.getHuaweiUserId() !== expectedHuaweiUserId) {
+        throw new ApiException(409, '华为账号已变化，已取消绑定清理', false)
+      }
+      responseToken = token
+      return ExternalHttpClient.delete(Constants.CONTROL_API_URL,
+        '/api/platform/bindings/' + encodeURIComponent(instanceId) + '?email=' + encodeURIComponent(expectedEmail) +
+        '&bindingId=' + bindingId.toString() + '&verifiedTime=' + encodeURIComponent(verifiedTime), token)
+    })
+    if (expectedHuaweiUserId !== PlatformSessionService.getHuaweiUserId()) {
+      throw new ApiException(409, '华为账号已变化，已取消绑定清理', false)
+    }
+    if (response.data !== null && responseToken === PlatformSessionService.getToken()) {
+      const result: BindingRemovalPayload = response.data as BindingRemovalPayload
+      if (result.instanceId === instanceId) {
+        PlatformSessionService.updateRole(result.platformRole)
+      }
+    }
   }
 
   static async loadAdminBindings(keyword: string, page: number, size: number):
@@ -145,10 +206,16 @@ export class InstanceService {
     if (email.trim() === '' || password === '') {
       return new InstanceBindResult(false, '请输入该实例的完整邮箱和密码')
     }
+    const expectedHuaweiId: string = PlatformSessionService.getHuaweiUserId()
+    const revision: number = InstanceService.sessionRevision()
     try {
+      if (expectedHuaweiId === '') {
+        throw new ApiException(401, '华为身份记录缺失，请退出当前邮箱后重新登录', false)
+      }
       const loginRequest: InstanceLoginRequest = new InstanceLoginRequest(email.trim(), password)
       const loginResponse: ApiResponse = await ExternalHttpClient.post(
         instance.apiBaseUrl, '/login', JSON.stringify(loginRequest))
+      InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
       if (loginResponse.data === null) {
         return new InstanceBindResult(false, '实例未返回登录令牌')
       }
@@ -157,10 +224,12 @@ export class InstanceService {
         return new InstanceBindResult(false, '实例未返回登录令牌')
       }
       const user: AuthUserInfo = await InstanceService.loadInstanceUser(instance.apiBaseUrl, loginPayload.token)
+      InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
       const binding: PlatformBindingPayload = await InstanceService.withPlatformSession(
         (token: string): Promise<PlatformBindingPayload> => {
           return PlatformApi.verifyBinding(token, instance.instanceId, loginPayload.token)
         })
+      InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
       const localInstance: MailInstance = new MailInstance(
         instance.instanceId,
         instance.displayName,
@@ -240,13 +309,25 @@ export class InstanceService {
   }
 
   private static async withPlatformSession<T>(operation: (token: string) => Promise<T>): Promise<T> {
+    const initialHuaweiId: string = PlatformSessionService.getHuaweiUserId()
+    const revision: number = InstanceService.sessionRevision()
     const ready: boolean = await InstanceService.ensurePlatformSession()
-    if (!ready) {
-      throw new ApiException(401, '平台身份尚未建立，请先重新登录华为账号', false)
+    if (revision !== InstanceService.sessionRevision() ||
+      (initialHuaweiId !== '' && initialHuaweiId !== PlatformSessionService.getHuaweiUserId())) {
+      throw new ApiException(409, '邮箱或华为身份已变化，请重新操作', false)
     }
+    if (!ready) {
+      throw new ApiException(401, PlatformSessionService.getHuaweiUserId() === '' ?
+        '华为身份记录缺失，请退出当前邮箱后重新登录' : '平台身份尚未建立，请重新授权华为账号', false)
+    }
+    const expectedHuaweiId: string = PlatformSessionService.getHuaweiUserId()
+    const requestToken: string = PlatformSessionService.getToken()
     try {
-      return await operation(PlatformSessionService.getToken())
+      const result: T = await operation(requestToken)
+      InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
+      return result
     } catch (err) {
+      InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
       if (!(err instanceof ApiException)) {
         throw new ApiException(-1, '平台服务请求失败，请稍后重试', true)
       }
@@ -254,10 +335,29 @@ export class InstanceService {
         throw err
       }
     }
+    if (requestToken !== PlatformSessionService.getToken() && PlatformSessionService.getToken() !== '') {
+      const result: T = await operation(PlatformSessionService.getToken())
+      InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
+      return result
+    }
     const renewed: boolean = await InstanceService.ensurePlatformSession(true)
+    InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
     if (!renewed) {
       throw new ApiException(401, '平台登录已过期，请重新登录华为账号', false)
     }
-    return operation(PlatformSessionService.getToken())
+    const result: T = await operation(PlatformSessionService.getToken())
+    InstanceService.assertPlatformOwner(expectedHuaweiId, revision)
+    return result
+  }
+
+  private static sessionRevision(): number {
+    const revision: number | undefined = AppStorage.get('sessionRevision') as number | undefined
+    return revision === undefined ? 0 : revision
+  }
+
+  private static assertPlatformOwner(huaweiUserId: string, revision: number): void {
+    if (huaweiUserId !== PlatformSessionService.getHuaweiUserId() || revision !== InstanceService.sessionRevision()) {
+      throw new ApiException(409, '邮箱或华为身份已变化，请重新操作', false)
+    }
   }
 }

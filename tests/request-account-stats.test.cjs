@@ -39,14 +39,15 @@ function harness(relative, cached = null) {
   const source = fs.readFileSync(path.resolve(__dirname, '../mail/src/main/ets', relative), 'utf8')
   const isHost = relative.includes('AccountCenter')
   const methods = ['canUseAnchorAccountData', 'getRegistrationTime', 'getMailCountText',
-    'getUnavailableStatText', 'applyHuaweiIdentity', 'loadHuaweiIdentity']
-  if (isHost) methods.push('notifyIdentityChanged', 'applyPlatformIdentity')
+    'getUnavailableStatText', 'applyHuaweiIdentity', 'loadHuaweiIdentity', 'applyPlatformIdentity']
+  if (isHost) methods.push('notifyIdentityChanged')
   const compiled = ts.transpileModule('class TestSubject {\n' + methods.map(name => extractMethod(source, name)).join('\n') +
     '\n}\nmodule.exports = TestSubject;', {
     compilerOptions: { target: ts.ScriptTarget.ES2021, module: ts.ModuleKind.CommonJS }
   }).outputText
   const state = { activeId: 'anchor', authEmail: 'owner@anchor.example',
-    anchorEmail: 'owner@anchor.example', anchorToken: 'test-anchor-token' }
+    anchorEmail: 'owner@anchor.example', anchorToken: 'test-anchor-token',
+    platformIdentity: '', platformNickName: '', platformAvatarUrl: '', cachedOwner: 'owner@anchor.example' }
   const writes = []
   const cacheKeys = []
   const cacheSaves = []
@@ -58,9 +59,10 @@ function harness(relative, cached = null) {
     AppStorage: { get: key => state[key] },
     DateTimeUtils: { formatUtcDateTime: (value, fallback) => value || fallback },
     MailStatsStore: { sync: (...values) => writes.push(values), syncMissing: (...values) => writes.push(values) },
-    PlatformSessionService: { getNickName: () => '', getAvatarUrl: () => '', getHuaweiUserId: () => '' },
+    PlatformSessionService: { getNickName: () => state.platformNickName,
+      getAvatarUrl: () => state.platformAvatarUrl, getHuaweiUserId: () => state.platformIdentity },
     HuaweiAccountCache: {
-      load: (context, owner) => { cacheKeys.push(owner); return cached },
+      load: (context, owner) => { cacheKeys.push(owner); return owner === state.cachedOwner ? cached : null },
       shouldRefresh: () => true,
       save: (context, owner, data) => cacheSaves.push({ owner, data }),
       markRefreshed: () => {}
@@ -153,5 +155,73 @@ for (const relative of ['components/AccountCenterSheetHost.ets', 'pages/Settings
     await first
     assert.deepEqual(h.writes, [[41, 8, 3]])
     assert.equal(h.cacheSaves.length, 1)
+  })
+
+  test(relative + ': external-only first login shows platform identity without requiring anchor access', async () => {
+    const h = harness(relative)
+    Object.assign(h.state, { activeId: 'external', authEmail: 'owner@external.example', anchorEmail: '',
+      anchorToken: '', platformIdentity: 'test-user', platformNickName: 'Platform Name',
+      platformAvatarUrl: 'https://avatar.example/platform.jpg' })
+    await h.target.loadHuaweiIdentity(true)
+    assert.equal(h.target.huaweiNickName, 'Platform Name')
+    assert.equal(h.target.huaweiAvatarUrl, 'https://avatar.example/platform.jpg')
+    assert.equal(h.requests.length, 0)
+    assert.deepEqual(h.cacheKeys, [])
+    assert.deepEqual(h.writes, [])
+  })
+
+  test(relative + ': current platform nickname/avatar win over matching but older anchor profile', async () => {
+    const h = harness(relative, binding())
+    Object.assign(h.state, { platformIdentity: 'test-user', platformNickName: 'Fresh Name',
+      platformAvatarUrl: 'https://avatar.example/fresh.jpg' })
+    const pending = h.target.loadHuaweiIdentity(true)
+    assert.equal(h.target.huaweiNickName, 'Fresh Name')
+    assert.equal(h.target.huaweiAvatarUrl, 'https://avatar.example/fresh.jpg')
+    h.requests[0].resolve(binding())
+    await pending
+    assert.equal(h.target.huaweiNickName, 'Fresh Name')
+    assert.equal(h.target.huaweiAvatarUrl, 'https://avatar.example/fresh.jpg')
+  })
+
+  test(relative + ': a different identity cannot inherit the old cache, and a mismatched mailbox response is ignored', async () => {
+    const h = harness(relative, binding())
+    h.state.platformIdentity = 'new-user'
+    const pending = h.target.loadHuaweiIdentity(true)
+    assert.deepEqual(h.cacheKeys, ['new-user|owner@anchor.example'])
+    assert.equal(h.target.huaweiNickName, '')
+    assert.equal(h.target.huaweiAvatarUrl, '')
+    assert.deepEqual(h.writes, [])
+    h.requests[0].resolve(binding({ primaryEmail: 'other@anchor.example' }))
+    await pending
+    assert.equal(h.target.huaweiNickName, '')
+    assert.equal(h.target.huaweiAvatarUrl, '')
+    assert.deepEqual(h.writes, [])
+    assert.deepEqual(h.cacheSaves, [])
+  })
+
+  test(relative + ': real masked Huawei display IDs do not reject an otherwise authenticated anchor profile', async () => {
+    const h = harness(relative)
+    h.state.platformIdentity = 'abcdef1234567890uvwxyz'
+    const pending = h.target.loadHuaweiIdentity(true)
+    h.requests[0].resolve(binding({ huaweiUserId: 'abcdef…uvwxyz' }))
+    await pending
+    assert.deepEqual(h.writes, [[40, 8, 3]])
+    assert.equal(h.target.huaweiUserId, 'abcdef1234567890uvwxyz')
+    assert.equal(h.cacheSaves[0].owner, 'abcdef1234567890uvwxyz|owner@anchor.example')
+  })
+
+  test(relative + ': changing identity invalidates an outstanding anchor profile response', async () => {
+    const h = harness(relative)
+    h.state.platformIdentity = 'test-user'
+    const pending = h.target.loadHuaweiIdentity(true)
+    h.state.platformIdentity = 'replacement-user'
+    h.target.applyPlatformIdentity()
+    h.requests[0].resolve(binding())
+    await pending
+    assert.equal(h.target.huaweiUserId, 'replacement-user')
+    assert.equal(h.target.huaweiNickName, '')
+    assert.equal(h.target.userCreateTime, '')
+    assert.deepEqual(h.cacheSaves, [])
+    assert.deepEqual(h.writes, [])
   })
 }

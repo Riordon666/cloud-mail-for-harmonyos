@@ -12,8 +12,11 @@ import {
 } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 
+import { common } from '@kit.AbilityKit'
 import Constants from '../common/Constants'
 import { InstanceRegistry } from '../common/InstanceRegistry'
+import { SessionService } from '../common/SessionService'
+import PlatformReauthorization from '../common/PlatformReauthorization'
 import { InstanceBindResult, InstanceService } from '../common/InstanceService'
 import {
   MailInstance,
@@ -29,13 +32,18 @@ export struct InstanceManagementPage {
   private bindSheetScroller: Scroller = new Scroller()
   private manageSheetScroller: Scroller = new Scroller()
   private toast: PromptAction = this.getUIContext().getPromptAction()
+  private pageActive: boolean = false
+  private refreshSequence: number = 0
   @StorageLink('activeInstanceId') activeInstanceId: string = ''
   @StorageLink('platformRole') platformRole: string = 'MEMBER'
+  @StorageLink('platformReauthRequired') platformReauthRequired: boolean = false
   @StorageLink('instanceRevision') @Watch('onInstanceRevision') instanceRevision: number = 0
   @State localInstances: MailInstance[] = []
   @State platformInstances: PlatformInstance[] = []
   @State keyword: string = ''
   @State loading: boolean = false
+  @State platformDirectoryLoaded: boolean = false
+  @State reauthorizing: boolean = false
   @State submitting: boolean = false
   @State showAddSheet: boolean = false
   @State showBindSheet: boolean = false
@@ -50,7 +58,16 @@ export struct InstanceManagementPage {
   @State selectedInstance: PlatformInstance = new PlatformInstance(new PlatformInstancePayload())
 
   aboutToAppear(): void {
+    this.pageActive = true
+    this.loading = false
+    this.reauthorizing = false
     this.refreshInstances()
+  }
+
+  aboutToDisappear(): void {
+    this.pageActive = false
+    this.refreshSequence++
+    this.bindPassword = ''
   }
 
   private onInstanceRevision(): void {
@@ -99,7 +116,13 @@ export struct InstanceManagementPage {
           }
 
           ListItem() {
-            this.SectionHeader('已登录服务', this.getLoggedInInstanceCount())
+            this.SectionHeader($r('app.string.instance_saved_services'), this.getSavedInstanceCount())
+          }
+
+          if (this.platformReauthRequired) {
+            ListItem() {
+              this.ReauthorizationCard()
+            }
           }
 
           ForEach(this.localInstances, (item: MailInstance) => {
@@ -267,7 +290,7 @@ export struct InstanceManagementPage {
   }
 
   @Builder
-  private SectionHeader(title: string, count: number) {
+  private SectionHeader(title: ResourceStr, count: number) {
     Row() {
       Text(title)
         .fontSize(Constants.FONT_SIZE_COMMON)
@@ -283,17 +306,42 @@ export struct InstanceManagementPage {
   }
 
   @Builder
+  private ReauthorizationCard() {
+    Column() {
+      HdsListItemCard({
+        prefixItem: new PrefixIcon({
+          iconSize: IconSize.SYSTEM_ICON,
+          iconValue: { symbol: $r('sys.symbol.person') }
+        }),
+        textItem: {
+          primaryText: { text: $r('app.string.platform_reauth_title') },
+          secondaryText: { text: $r('app.string.platform_reauth_description') },
+          description: { text: this.reauthorizing ? $r('app.string.platform_reauth_busy') :
+            $r('app.string.platform_reauth_action') }
+        },
+        cardBackgroundColor: $r('app.color.card'),
+        cardBorderRadius: Constants.RADIUS_CARD,
+        hoverBorderRadius: Constants.RADIUS_CARD,
+        enable: !this.reauthorizing,
+        onClick: () => { this.reauthorizePlatform() }
+      })
+    }
+    .width('100%')
+    .padding({ top: 4, bottom: 4 })
+  }
+
+  @Builder
   private LocalInstanceCard(item: MailInstance) {
     Row({ space: Constants.GAP_MEDIUM }) {
       Stack() {
         Circle()
           .width(48)
           .height(48)
-          .foregroundColor(item.instanceId === this.activeInstanceId ?
+          .foregroundColor(this.isCurrentInstance(item) ?
             $r('app.color.primary') : $r('app.color.background'))
         SymbolGlyph($r('sys.symbol.externaldrive'))
           .fontSize(Constants.SIZE_ICON_MEDIUM)
-          .fontColor([item.instanceId === this.activeInstanceId ?
+          .fontColor([this.isCurrentInstance(item) ?
             $r('sys.color.icon_on_primary') : $r('app.color.primary')])
       }
       .width(48)
@@ -307,8 +355,8 @@ export struct InstanceManagementPage {
             .fontColor($r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (item.instanceId === this.activeInstanceId) {
-            Text('当前')
+          if (this.isCurrentInstance(item)) {
+            Text($r('app.string.instance_current'))
               .fontSize(Constants.FONT_SIZE_CAPTION)
               .fontColor($r('sys.color.icon_on_primary'))
               .padding({ left: 7, right: 7, top: 2, bottom: 2 })
@@ -322,20 +370,22 @@ export struct InstanceManagementPage {
           .fontColor($r('app.color.text_secondary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(this.getInstanceRoleLabel(item.instanceRole))
+        Text(this.getInstanceStatus(item))
           .fontSize(Constants.FONT_SIZE_CAPTION)
           .fontColor($r('app.color.text_tertiary'))
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      if (item.instanceId !== this.activeInstanceId) {
-        Button('切换', {
+      if (!this.isCurrentInstance(item)) {
+        Button(this.hasMailboxSession(item) ? $r('app.string.instance_switch_action') :
+          $r('app.string.instance_sign_in'), {
           type: ButtonType.Capsule,
           stateEffect: true,
           buttonStyle: ButtonStyleMode.NORMAL,
           controlSize: ControlSize.SMALL
         })
+          .enabled(!this.isUnavailable(item) && !this.reauthorizing)
           .onClick(() => {
             this.switchTo(item)
           })
@@ -938,13 +988,50 @@ export struct InstanceManagementPage {
       return
     }
     this.loading = true
+    const sequence: number = ++this.refreshSequence
     this.loadLocalInstances()
     try {
-      this.platformInstances = await InstanceService.loadPlatformInstances()
+      const instances: PlatformInstance[] = await InstanceService.loadPlatformInstances()
+      if (!this.pageActive || sequence !== this.refreshSequence) {
+        return
+      }
+      this.platformInstances = instances
+      this.platformDirectoryLoaded = true
+      this.loadLocalInstances()
     } catch (err) {
+      if (!this.pageActive || sequence !== this.refreshSequence) {
+        return
+      }
+      // A failed directory request is not evidence that a saved service was removed.
+      this.platformDirectoryLoaded = false
       this.showToast('暂时无法读取平台实例，已显示本机服务')
+    } finally {
+      if (this.pageActive && sequence === this.refreshSequence) {
+        this.loading = false
+      }
     }
-    this.loading = false
+  }
+
+  private async reauthorizePlatform(): Promise<void> {
+    if (this.reauthorizing) {
+      return
+    }
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+    this.reauthorizing = true
+    try {
+      await PlatformReauthorization.reauthorize(context)
+      if (this.pageActive) {
+        await this.refreshInstances()
+      }
+    } catch (err) {
+      if (this.pageActive) {
+        this.showToast(err instanceof Error ? err.message : '华为账号授权失败，请重试')
+      }
+    } finally {
+      if (this.pageActive) {
+        this.reauthorizing = false
+      }
+    }
   }
 
   private loadLocalInstances(): void {
@@ -997,6 +1084,9 @@ export struct InstanceManagementPage {
   }
 
   private switchTo(instance: MailInstance): void {
+    if (this.isUnavailable(instance)) {
+      return
+    }
     const switched: boolean = InstanceService.switchInstance(instance.instanceId)
     if (!switched) {
       this.showToast('该服务需要重新登录')
@@ -1010,6 +1100,41 @@ export struct InstanceManagementPage {
     if (this.onInstanceSwitched) {
       this.onInstanceSwitched()
     }
+  }
+
+  private hasMailboxSession(instance: MailInstance): boolean {
+    return SessionService.getInstanceToken(instance.instanceId) !== ''
+  }
+
+  private isCurrentInstance(instance: MailInstance): boolean {
+    return instance.instanceId === this.activeInstanceId && this.hasMailboxSession(instance)
+  }
+
+  private isUnavailable(instance: MailInstance): boolean {
+    if (!this.platformDirectoryLoaded) {
+      return false
+    }
+    const service: PlatformInstance | null = this.findPlatformInstance(instance.instanceId)
+    return service === null || service.status !== 'ACTIVE'
+  }
+
+  private getInstanceStatus(instance: MailInstance): ResourceStr {
+    if (this.isUnavailable(instance)) {
+      return $r('app.string.instance_unavailable')
+    }
+    if (!this.hasMailboxSession(instance)) {
+      return $r('app.string.instance_needs_login')
+    }
+    if (this.platformDirectoryLoaded) {
+      const service: PlatformInstance | null = this.findPlatformInstance(instance.instanceId)
+      if (service !== null && service.bindingStatus === 'ACTIVE' && service.localEmail !== '' &&
+        service.localEmail === instance.localEmail &&
+        (service.instanceRole === 'INSTANCE_OWNER' || service.instanceRole === 'INSTANCE_ADMIN' ||
+          service.instanceRole === 'MEMBER')) {
+        return this.getInstanceRoleLabel(service.instanceRole)
+      }
+    }
+    return this.getInstanceRoleLabel(instance.instanceRole)
   }
 
   private findPlatformInstance(instanceId: string): PlatformInstance | null {
@@ -1061,7 +1186,7 @@ export struct InstanceManagementPage {
     return count
   }
 
-  private getLoggedInInstanceCount(): number {
+  private getSavedInstanceCount(): number {
     let count: number = 0
     for (let index = 0; index < this.localInstances.length; index++) {
       if (this.matchesLocal(this.localInstances[index])) {

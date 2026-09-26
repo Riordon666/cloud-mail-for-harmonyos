@@ -2,6 +2,7 @@
 import { common } from '@kit.AbilityKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import {
+  HdsListItemCard,
   HdsNavDestination,
   HdsNavDestinationTitleMode,
   IconStyleMode,
@@ -9,7 +10,7 @@ import {
   hdsMaterial
 } from '@kit.UIDesignKit'
 import { HuaweiAccountApi, HuaweiAccountBinding } from '../api/HuaweiAccountApi'
-import { ProfileApi } from '../api/ProfileApi'
+import { ProfileApi, ProfileTarget } from '../api/ProfileApi'
 import Constants from '../common/Constants'
 import { DateTimeUtils } from '../common/DateTimeUtils'
 import { HuaweiAccountCache } from '../common/HuaweiAccountCache'
@@ -19,6 +20,8 @@ import { InstanceRegistry } from '../common/InstanceRegistry'
 import { SessionService } from '../common/SessionService'
 import { MailStatsStore } from '../common/MailStatsStore'
 import { PlatformSessionService } from '../common/PlatformSessionService'
+import { AccountBindingCleanup } from '../common/AccountBindingCleanup'
+import PlatformReauthorization from '../common/PlatformReauthorization'
 
 @Component
 export struct AccountCenterSheetHost {
@@ -28,6 +31,13 @@ export struct AccountCenterSheetHost {
   @StorageLink('sessionRevision') @Watch('onSessionRevisionChanged') sessionRevision: number = 0
   @StorageLink('instanceRevision') @Watch('onInstanceRevisionChanged') instanceRevision: number = 0
   @StorageLink('platformRevision') @Watch('onPlatformRevisionChanged') platformRevision: number = 0
+  @StorageLink('authEmail') authEmail: string = ''
+  @StorageLink('activeInstanceName') activeInstanceName: string = ''
+  @StorageLink('platformReauthRequired') platformReauthRequired: boolean = false
+  @State reauthorizing: boolean = false
+  @State cleanupPendingCount: number = 0
+  @State cleanupRetrying: boolean = false
+  @State profileTarget: ProfileTarget = new ProfileTarget()
   @State huaweiNickName: string = ''
   @State huaweiAvatarUrl: string = ''
   @State huaweiPrimaryEmail: string = ''
@@ -56,12 +66,15 @@ export struct AccountCenterSheetHost {
   private bindingsRequestInFlight: boolean = false
   private identityRequestSequence: number = 0
   private bindingsRequestSequence: number = 0
+  private bindingsOwnerId: string = ''
   onManageAccounts?: () => void
   onManageInstances?: () => void
   onLogout?: () => void
   onIdentityChanged?: (avatarUrl: string, avatarText: string) => void
 
   aboutToAppear(): void {
+    AccountBindingCleanup.initialize(this.getUIContext().getHostContext() as common.UIAbilityContext)
+    this.retryBindingCleanup()
     this.applyPlatformIdentity()
     this.loadHuaweiIdentity()
     this.loadBoundMailboxes()
@@ -82,6 +95,8 @@ export struct AccountCenterSheetHost {
   }
 
   private onSessionRevisionChanged(): void {
+    this.showPasswordDialog = false
+    this.showDeleteAccountDialog = false
     this.userCreateTime = ''
     this.loadHuaweiIdentity(true)
   }
@@ -93,6 +108,9 @@ export struct AccountCenterSheetHost {
   private onPlatformRevisionChanged(): void {
     this.applyPlatformIdentity()
     this.notifyIdentityChanged()
+    this.loadHuaweiIdentity(true)
+    this.cleanupPendingCount = AccountBindingCleanup.pendingCount()
+    this.loadBoundMailboxes(true)
   }
 
   build() {
@@ -171,6 +189,35 @@ export struct AccountCenterSheetHost {
             .width('100%')
 
             this.BoundMailboxesCard()
+
+            if (this.platformReauthRequired) {
+              HdsListItemCard({
+                textItem: {
+                  primaryText: { text: this.reauthorizing ? $r('app.string.platform_reauth_busy') :
+                    $r('app.string.platform_reauth_action') },
+                  secondaryText: { text: $r('app.string.platform_reauth_description') }
+                },
+                cardHeight: 76,
+                cardBackgroundColor: $r('app.color.card'),
+                cardBorderRadius: Constants.RADIUS_CARD,
+                enable: !this.reauthorizing,
+                onClick: () => { this.reauthorizePlatform() }
+              })
+            }
+            if (this.cleanupPendingCount > 0) {
+              HdsListItemCard({
+                textItem: {
+                  primaryText: { text: this.cleanupRetrying ? $r('app.string.binding_cleanup_busy') :
+                    $r('app.string.binding_cleanup_pending') },
+                  secondaryText: { text: $r('app.string.binding_cleanup_description') }
+                },
+                cardHeight: 76,
+                cardBackgroundColor: $r('app.color.card'),
+                cardBorderRadius: Constants.RADIUS_CARD,
+                enable: !this.cleanupRetrying,
+                onClick: () => { this.retryBindingCleanup(true) }
+              })
+            }
 
             Column() {
               this.ActionRow('邮箱服务', '多实例绑定与切换', $r('sys.symbol.externaldrive'), () => {
@@ -444,7 +491,7 @@ export struct AccountCenterSheetHost {
   }
 
   @Builder
-  private ActionRow(title: string, description: string, icon: Resource, action: () => void) {
+  private ActionRow(title: ResourceStr, description: ResourceStr, icon: Resource, action: () => void) {
     Row() {
       SymbolGlyph(icon)
         .fontSize(Constants.SIZE_ICON_MEDIUM)
@@ -481,7 +528,9 @@ export struct AccountCenterSheetHost {
             Column() {
               this.ProfileInfoRow('华为账号', this.getHuaweiDisplayName())
               Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
-              this.ProfileInfoRow('主邮箱', this.getPrimaryEmailValue())
+              this.ProfileInfoRow($r('app.string.profile_current_service'), this.activeInstanceName)
+              Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
+              this.ProfileInfoRow($r('app.string.profile_current_mailbox'), this.getPrimaryEmailValue())
             }
             .width('100%')
             .backgroundColor($r('app.color.card'))
@@ -490,10 +539,8 @@ export struct AccountCenterSheetHost {
 
             this.SectionTitle('安全设置')
             Column() {
-              this.ActionRow('修改密码', '修改云笺集主服务邮箱密码', $r('sys.symbol.lock'), () => {
-                this.newPassword = ''
-                this.confirmPassword = ''
-                this.showPasswordDialog = true
+              this.ActionRow('修改密码', $r('app.string.profile_password_scope'), $r('sys.symbol.lock'), () => {
+                this.openProfileDialog(false)
               })
             }
             .width('100%')
@@ -508,7 +555,7 @@ export struct AccountCenterSheetHost {
                   .fontSize(Constants.FONT_SIZE_SUBTITLE)
                   .fontWeight(FontWeight.Bold)
                   .fontColor($r('app.color.danger'))
-                Text('此操作将永久删除云笺集主服务账户并解除华为账号绑定，无法恢复。')
+                Text($r('app.string.profile_delete_scope'))
                   .fontSize(Constants.FONT_SIZE_SMALL)
                   .fontColor($r('app.color.text_secondary'))
               }
@@ -519,7 +566,7 @@ export struct AccountCenterSheetHost {
                 .height(44)
                 .fontColor($r('sys.color.icon_on_primary'))
                 .backgroundColor($r('app.color.danger'))
-                .onClick(() => { this.showDeleteAccountDialog = true })
+                .onClick(() => { this.openProfileDialog(true) })
             }
             .width('100%')
             .padding(Constants.PADDING_EDGE)
@@ -614,7 +661,7 @@ export struct AccountCenterSheetHost {
   }
 
   @Builder
-  private ProfileInfoRow(label: string, value: string) {
+  private ProfileInfoRow(label: ResourceStr, value: string) {
     Row({ space: Constants.GAP_MEDIUM }) {
       Text(label)
         .fontSize(Constants.FONT_SIZE_COMMON)
@@ -646,6 +693,11 @@ export struct AccountCenterSheetHost {
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
           .width('100%')
+        Text(this.profileTarget.displayName + ' · ' + this.profileTarget.email)
+          .fontSize(Constants.FONT_SIZE_SMALL)
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+          .wordBreak(WordBreak.BREAK_ALL)
         TextInput({ text: this.newPassword, placeholder: '输入新密码（至少6位）' })
           .type(InputType.Password)
           .height(48)
@@ -700,7 +752,7 @@ export struct AccountCenterSheetHost {
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
           .width('100%')
-        Text('云笺集主服务账户、邮箱数据及华为账号绑定将无法恢复。确定继续吗？')
+        Text($r('app.string.profile_delete_target_confirm', this.profileTarget.displayName, this.profileTarget.email))
           .fontSize(Constants.FONT_SIZE_COMMON)
           .fontColor($r('app.color.text_secondary'))
           .width('100%')
@@ -788,16 +840,25 @@ export struct AccountCenterSheetHost {
     const ownerEmail: string = InstanceService.getAnchorEmail()
     const sourceToken: string = InstanceService.getAnchorToken()
     const requestRevision: number = this.sessionRevision
+    const identity: string = PlatformSessionService.getHuaweiUserId()
+    const cacheOwner: string = identity === '' ? ownerEmail : identity + '|' + ownerEmail
     this.applyPlatformIdentity()
-    const cachedBinding: HuaweiAccountBinding | null = HuaweiAccountCache.load(context, ownerEmail)
-    if (cachedBinding !== null) {
+    if (ownerEmail === '' || sourceToken === '') {
+      this.identityRequestSequence++
+      this.identityRequestInFlight = false
+      this.identityLoaded = true
+      this.notifyIdentityChanged()
+      return
+    }
+    const cachedBinding: HuaweiAccountBinding | null = HuaweiAccountCache.load(context, cacheOwner)
+    if (cachedBinding !== null && cachedBinding.primaryEmail === ownerEmail) {
       this.applyHuaweiIdentity(cachedBinding, false)
       if (this.canUseAnchorAccountData(cachedBinding.primaryEmail)) {
         MailStatsStore.syncMissing(cachedBinding.receiveCount, cachedBinding.sentCount, cachedBinding.starCount)
       }
       this.identityLoaded = true
     }
-    if (!forceRefresh && !HuaweiAccountCache.shouldRefresh(ownerEmail)) {
+    if (!forceRefresh && !HuaweiAccountCache.shouldRefresh(cacheOwner)) {
       this.identityLoaded = true
       this.notifyIdentityChanged()
       return
@@ -810,17 +871,20 @@ export struct AccountCenterSheetHost {
     try {
       const binding: HuaweiAccountBinding | null = await HuaweiAccountApi.current()
       if (requestId !== this.identityRequestSequence || requestRevision !== this.sessionRevision ||
-        ownerEmail !== InstanceService.getAnchorEmail() || sourceToken !== InstanceService.getAnchorToken()) {
+        ownerEmail !== InstanceService.getAnchorEmail() || sourceToken !== InstanceService.getAnchorToken() ||
+        identity !== PlatformSessionService.getHuaweiUserId()) {
         return
       }
       this.identityLoaded = true
-      if (binding === null) {
+      // /huawei/me returns a masked display ID. The captured token, mailbox and
+      // platform identity bind this response; the display ID is not an auth key.
+      if (binding === null || binding.primaryEmail !== ownerEmail) {
         this.notifyIdentityChanged()
         return
       }
       this.applyHuaweiIdentity(binding)
-      HuaweiAccountCache.save(context, ownerEmail, binding)
-      HuaweiAccountCache.markRefreshed(ownerEmail)
+      HuaweiAccountCache.save(context, cacheOwner, binding)
+      HuaweiAccountCache.markRefreshed(cacheOwner)
     } catch (err) {
       if (requestId === this.identityRequestSequence) {
         this.identityLoaded = true
@@ -837,6 +901,14 @@ export struct AccountCenterSheetHost {
   }
 
   private async loadBoundMailboxes(forceRefresh: boolean = false): Promise<void> {
+    const identity: string = PlatformSessionService.getHuaweiUserId()
+    if (this.bindingsOwnerId !== identity) {
+      this.bindingsOwnerId = identity
+      this.boundMailboxes = []
+      this.bindingsLoaded = false
+      this.bindingsRequestSequence++
+      this.bindingsRequestInFlight = false
+    }
     if (!forceRefresh && this.bindingsLoaded) {
       return
     }
@@ -849,7 +921,7 @@ export struct AccountCenterSheetHost {
     this.bindingsLoadError = false
     try {
       const bindings: PlatformBinding[] = await InstanceService.loadMyBindings()
-      if (requestId !== this.bindingsRequestSequence) {
+      if (requestId !== this.bindingsRequestSequence || identity !== PlatformSessionService.getHuaweiUserId()) {
         return
       }
       this.boundMailboxes = bindings
@@ -871,15 +943,14 @@ export struct AccountCenterSheetHost {
     const nickName: string = PlatformSessionService.getNickName()
     const avatarUrl: string = PlatformSessionService.getAvatarUrl()
     const huaweiUserId: string = PlatformSessionService.getHuaweiUserId()
-    if (nickName !== '') {
-      this.huaweiNickName = nickName
+    if (this.huaweiUserId !== huaweiUserId) {
+      this.huaweiPrimaryEmail = ''
+      this.userCreateTime = ''
     }
-    if (avatarUrl !== '') {
-      this.huaweiAvatarUrl = avatarUrl
-    }
-    if (huaweiUserId !== '') {
-      this.huaweiUserId = huaweiUserId
-    }
+    this.huaweiNickName = nickName
+    this.huaweiAvatarUrl = avatarUrl
+    this.huaweiUserId = huaweiUserId
+    if (huaweiUserId !== '') { this.identityLoaded = true }
   }
 
   private applyHuaweiIdentity(binding: HuaweiAccountBinding, syncStats: boolean = true): void {
@@ -919,7 +990,8 @@ export struct AccountCenterSheetHost {
   }
 
   private getPrimaryEmailValue(): string {
-    return this.huaweiPrimaryEmail === '' ? InstanceService.getAnchorEmail() : this.huaweiPrimaryEmail
+    // A Huawei identity may only have a mailbox on an external instance.
+    return this.authEmail
   }
 
   private getPrimaryEmailLabel(): string {
@@ -958,6 +1030,7 @@ export struct AccountCenterSheetHost {
   }
 
   private async changePassword(): Promise<void> {
+    if (this.profileSubmitting) { return }
     if (this.newPassword.length < 6) {
       this.showToast('新密码至少需要6位')
       return
@@ -968,7 +1041,7 @@ export struct AccountCenterSheetHost {
     }
     this.profileSubmitting = true
     try {
-      await ProfileApi.resetPassword(this.newPassword)
+      await ProfileApi.resetPassword(this.newPassword, this.profileTarget)
       this.showPasswordDialog = false
       this.newPassword = ''
       this.confirmPassword = ''
@@ -981,18 +1054,20 @@ export struct AccountCenterSheetHost {
   }
 
   private async deleteAccount(): Promise<void> {
+    if (this.profileSubmitting) { return }
+    const target: ProfileTarget = this.profileTarget
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
     this.profileSubmitting = true
     try {
-      await ProfileApi.deleteAccount()
+      const bindingRemoved: boolean = await ProfileApi.deleteAccount(target)
       this.showDeleteAccountDialog = false
       this.showAccountSettings = false
       this.isShown = false
-      const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
-      HuaweiAccountCache.clear(context, InstanceService.getAnchorEmail())
-      this.showToast('账户已删除')
-      if (this.onLogout) {
-        this.onLogout()
+      if (target.instanceId === InstanceRegistry.getDefaultInstanceId()) {
+        HuaweiAccountCache.clear(context, target.huaweiUserId + '|' + target.email)
       }
+      this.cleanupPendingCount = AccountBindingCleanup.pendingCount()
+      this.showToast(bindingRemoved ? $r('app.string.profile_deleted') : $r('app.string.profile_deleted_pending'))
     } catch (err) {
       this.showToast(err instanceof Error && err.message !== '' ? err.message : '删除账户失败，请重试')
     } finally {
@@ -1000,7 +1075,48 @@ export struct AccountCenterSheetHost {
     }
   }
 
-  private showToast(message: string): void {
+  private openProfileDialog(deleting: boolean): void {
+    try {
+      this.profileTarget = ProfileApi.captureTarget()
+      this.newPassword = ''
+      this.confirmPassword = ''
+      this.showDeleteAccountDialog = deleting
+      this.showPasswordDialog = !deleting
+    } catch (err) {
+      this.showToast(err instanceof Error ? err.message : $r('app.string.profile_unavailable'))
+    }
+  }
+
+  private async reauthorizePlatform(): Promise<void> {
+    if (this.reauthorizing) { return }
+    this.reauthorizing = true
+    try {
+      await PlatformReauthorization.reauthorize(this.getUIContext().getHostContext() as common.UIAbilityContext)
+      await this.retryBindingCleanup()
+      await this.loadBoundMailboxes(true)
+      this.showToast($r('app.string.platform_reauth_success'))
+    } catch (err) {
+      this.showToast(err instanceof Error ? err.message : $r('app.string.platform_reauth_failed'))
+    } finally {
+      this.reauthorizing = false
+    }
+  }
+
+  private async retryBindingCleanup(notify: boolean = false): Promise<void> {
+    if (this.cleanupRetrying) { return }
+    this.cleanupPendingCount = AccountBindingCleanup.pendingCount()
+    if (this.cleanupPendingCount === 0) { return }
+    this.cleanupRetrying = true
+    const completed: boolean = await AccountBindingCleanup.retry()
+    this.cleanupPendingCount = AccountBindingCleanup.pendingCount()
+    this.cleanupRetrying = false
+    if (completed) { await this.loadBoundMailboxes(true) }
+    if (notify) {
+      this.showToast(completed ? $r('app.string.binding_cleanup_complete') : $r('app.string.binding_cleanup_retry_failed'))
+    }
+  }
+
+  private showToast(message: ResourceStr): void {
     try {
       this.toast.openToast({ message: message, duration: 1500 })
     } catch (err) {

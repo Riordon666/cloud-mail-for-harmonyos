@@ -115,6 +115,222 @@
     {
       "name": "common_cancel",
       "value": "取消"
+    },
+    {
+      "name": "login_instance_submitting",
+      "value": "正在验证所选邮箱服务"
+    },
+    {
+      "name": "login_selected_instance",
+      "value": "当前邮箱服务"
+    },
+    {
+      "name": "login_switch_instance",
+      "value": "切换"
+    },
+    {
+      "name": "login_instances_loading",
+      "value": "正在获取邮箱服务…"
+    },
+    {
+      "name": "login_instances_retry",
+      "value": "重新获取邮箱服务"
+    },
+    {
+      "name": "login_multi_instance_description",
+      "value": "一个华为账号，连接不同邮箱服务"
+    },
+    {
+      "name": "login_registration_loading",
+      "value": "正在获取所选服务的注册规则…"
+    },
+    {
+      "name": "login_registration_retry",
+      "value": "重试获取注册规则"
+    },
+    {
+      "name": "login_instance_password_notice",
+      "value": "请输入所选服务的完整邮箱和密码。密码仅用于本次验证，不会保存到云笺集中心。"
+    },
+    {
+      "name": "login_instance_web_registration",
+      "value": "请先前往所选服务的网站完成注册、验证码或邀请验证。注册成功后返回云笺集，使用该邮箱和密码验证并绑定当前华为账号。"
+    },
+    {
+      "name": "login_instance_open_registration",
+      "value": "前往所选服务注册"
+    },
+    {
+      "name": "login_instance_registration_done",
+      "value": "已完成注册，返回绑定"
+    },
+    {
+      "name": "login_email_prefix",
+      "value": "邮箱账号（不含 @域名）"
+    },
+    {
+      "name": "login_full_email",
+      "value": "完整邮箱地址"
+    },
+    {
+      "name": "login_email_domain",
+      "value": "邮箱域名"
+    },
+    {
+      "name": "login_instance_login_failed",
+      "value": "登录失败，请重试"
+    },
+    {
+      "name": "login_huawei_identity_changed",
+      "value": "华为账号已变化，请重新点击登录"
+    },
+    {
+      "name": "login_instance_bind_failed",
+      "value": "绑定失败，请检查所选服务与邮箱密码"
+    },
+    {
+      "name": "login_instance_register_failed",
+      "value": "注册失败，请检查注册信息后重试"
+    },
+    {
+      "name": "login_email_prefix_invalid",
+      "value": "请输入不含 @域名 的邮箱账号"
+    },
+    {
+      "name": "login_email_invalid",
+      "value": "请输入正确的完整邮箱地址"
+    },
+    {
+      "name": "login_instances_empty",
+      "value": "暂无可用邮箱服务，请稍后重试"
+    },
+    {
+      "name": "login_instance_unavailable",
+      "value": "所选服务已不可用，请重新选择邮箱服务"
+    },
+    {
+      "name": "login_instances_failed",
+      "value": "邮箱服务列表加载失败，请重试，不会自动绑定默认服务"
+    },
+    {
+      "name": "login_registration_failed",
+      "value": "未能获取注册规则，可重试或绑定已有邮箱"
+    },
+    {
+      "name": "login_instance_open_failed",
+      "value": "暂时无法打开所选邮箱服务的网站"
+    },
+    {
+      "name": "login_instance_picker_title",
+      "value": "选择邮箱服务"
+    },
+    {
+      "name": "login_instance_picker_description",
+      "value": "先选择要使用的服务，再登录华为账号。每个服务使用自己的邮箱与密码，不需要先注册云笺集主服务。"
+    },
+    {
+      "name": "platform_reauth_title",
+      "value": "需要重新验证华为身份"
+    },
+    {
+      "name": "platform_reauth_description",
+      "value": "恢复服务管理；已登录邮箱不会退出"
+    },
+    {
+      "name": "platform_reauth_action",
+      "value": "重新验证华为身份"
+    },
+    {
+      "name": "platform_reauth_busy",
+      "value": "正在验证华为身份"
+    },
+    {
+      "name": "platform_reauth_success",
+      "value": "华为身份已验证"
+    },
+    {
+      "name": "platform_reauth_failed",
+      "value": "华为身份验证失败，请重试"
+    },
+    {
+      "name": "instance_saved_services",
+      "value": "本机保存的服务"
+    },
+    {
+      "name": "instance_needs_login",
+      "value": "需要登录"
+    },
+    {
+      "name": "instance_unavailable",
+      "value": "服务暂不可用"
+    },
+    {
+      "name": "instance_sign_in",
+      "value": "登录"
+    },
+    {
+      "name": "instance_current",
+      "value": "当前"
+    },
+    {
+      "name": "instance_switch_action",
+      "value": "切换"
+    },
+    {
+      "name": "profile_current_service",
+      "value": "当前服务"
+    },
+    {
+      "name": "profile_current_mailbox",
+      "value": "当前邮箱"
+    },
+    {
+      "name": "profile_password_scope",
+      "value": "仅修改当前服务的邮箱密码"
+    },
+    {
+      "name": "profile_delete_scope",
+      "value": "仅删除当前服务的邮箱账户并解除对应绑定，不影响其他服务邮箱。数据清理遵循该服务策略。"
+    },
+    {
+      "name": "profile_delete_target_confirm",
+      "value": "将删除 %1$s 的邮箱 %2$s 并解除该服务绑定。此操作无法在应用内撤销，其他服务邮箱不受影响。确定继续吗？"
+    },
+    {
+      "name": "profile_deleted",
+      "value": "所选服务邮箱已删除，其他邮箱不受影响"
+    },
+    {
+      "name": "profile_deleted_pending",
+      "value": "邮箱已删除，绑定关系待同步，可在账号中心重试"
+    },
+    {
+      "name": "profile_unavailable",
+      "value": "当前邮箱暂不可用"
+    },
+    {
+      "name": "binding_cleanup_busy",
+      "value": "正在同步绑定关系"
+    },
+    {
+      "name": "binding_cleanup_pending",
+      "value": "邮箱已删除，绑定关系待同步"
+    },
+    {
+      "name": "binding_cleanup_description",
+      "value": "点击重试解除绑定，不会重复删除邮箱"
+    },
+    {
+      "name": "binding_cleanup_complete",
+      "value": "绑定关系已同步"
+    },
+    {
+      "name": "binding_cleanup_retry_failed",
+      "value": "绑定关系仍待同步，请检查网络或重新验证华为身份"
+    },
+    {
+      "name": "account_huawei_user",
+      "value": "华为账号用户"
     }
   ]
 }

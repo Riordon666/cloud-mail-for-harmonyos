@@ -29,6 +29,11 @@ export class SessionService {
         SessionService.sessionPreferences.deleteSync('token')
         SessionService.sessionPreferences.flushSync()
       }
+      // Older releases have no marker. A prefetched onboarding token is not an activated mailbox.
+      const committed: boolean = SessionService.sessionPreferences.getSync('activeSessionCommitted', true) as boolean
+      if (!committed) {
+        token = ''
+      }
       email = activeInstance.localEmail
       role = activeInstance.localRole
       roleName = activeInstance.localRoleName
@@ -76,6 +81,7 @@ export class SessionService {
       SessionService.sessionPreferences.putSync('role', role)
       SessionService.sessionPreferences.putSync('roleName', roleName)
       SessionService.sessionPreferences.putSync('accountId', accountId)
+      SessionService.sessionPreferences.putSync('activeSessionCommitted', token !== '')
       SessionService.sessionPreferences.flushSync()
     } catch (err) {
       console.error('save session preferences failed')
@@ -103,6 +109,7 @@ export class SessionService {
       SessionService.sessionPreferences.deleteSync('role')
       SessionService.sessionPreferences.deleteSync('roleName')
       SessionService.sessionPreferences.deleteSync('accountId')
+      SessionService.sessionPreferences.putSync('activeSessionCommitted', false)
       SessionService.sessionPreferences.flushSync()
     } catch (err) {
       console.error('clear session preferences failed')
@@ -136,6 +143,7 @@ export class SessionService {
     }
     try {
       SessionService.sessionPreferences.clearSync()
+      SessionService.sessionPreferences.putSync('activeSessionCommitted', false)
       SessionService.sessionPreferences.flushSync()
     } catch (err) {
       console.error('clear all session preferences failed')
@@ -167,29 +175,62 @@ export class SessionService {
   }
 
   static switchInstance(instanceId: string): boolean {
-    // Persist the old owner's editor before changing any global account state.
-    DraftService.flushActiveEditor()
     const instance: MailInstance | null = InstanceRegistry.find(instanceId)
-    if (instance === null || !InstanceRegistry.setActiveInstance(instanceId)) {
+    const token: string = SecureTokenStore.getInstanceToken(instanceId)
+    if (instance === null || token === '') {
+      return false
+    }
+    // A rejected switch must leave the current mailbox, editor and cache untouched.
+    DraftService.flushActiveEditor()
+    if (!InstanceRegistry.setActiveInstance(instanceId)) {
       return false
     }
     MailDetailCache.clear()
-    const token: string = SecureTokenStore.getInstanceToken(instanceId)
     AppStorage.set('authToken', token)
     AppStorage.set('authEmail', instance.localEmail)
     AppStorage.set('authRole', instance.localRole)
     AppStorage.set('authRoleName', instance.localRoleName)
     AppStorage.set('currentAccountId', instance.accountId)
     MailStatsStore.setOwner(instance.localEmail)
+    SessionService.persistActivation(true)
     SessionService.applyActiveInstanceStorage()
     SessionService.notifySessionChanged()
     SessionService.notifyInstanceChanged()
-    return token !== ''
+    return true
   }
 
   static saveInstanceSession(instance: MailInstance, token: string): void {
     InstanceRegistry.save(instance)
     SecureTokenStore.saveInstanceToken(instance.instanceId, token)
+  }
+
+  // Server-side account deletion affects one mailbox, not the other signed-in services.
+  static clearMailboxSession(instanceId: string): boolean {
+    const wasActive: boolean = InstanceRegistry.getActiveInstanceId() === instanceId
+    if (wasActive) {
+      SessionService.clearSession()
+    } else {
+      SecureTokenStore.removeInstanceToken(instanceId)
+    }
+    InstanceRegistry.updateSession(instanceId, '', 'user', '普通用户', 0, 'MEMBER')
+    if (instanceId !== InstanceRegistry.getDefaultInstanceId()) {
+      InstanceRegistry.remove(instanceId)
+    }
+    if (wasActive) {
+      const instances: MailInstance[] = InstanceRegistry.getInstances()
+      for (let index = 0; index < instances.length; index++) {
+        if (SecureTokenStore.getInstanceToken(instances[index].instanceId) !== '' &&
+          SessionService.switchInstance(instances[index].instanceId)) {
+          return true
+        }
+      }
+      InstanceRegistry.setActiveInstance(InstanceRegistry.getDefaultInstanceId())
+      SessionService.applyActiveSession()
+    } else {
+      SessionService.applyActiveInstanceStorage()
+      SessionService.notifyInstanceChanged()
+    }
+    return SessionService.getToken() !== ''
   }
 
   static removeInstanceSession(instanceId: string): boolean {
@@ -266,9 +307,22 @@ export class SessionService {
     AppStorage.set('authRoleName', instance.localRoleName)
     AppStorage.set('currentAccountId', instance.accountId)
     MailStatsStore.setOwner(instance.localEmail)
+    SessionService.persistActivation(token !== '')
     SessionService.applyActiveInstanceStorage()
     SessionService.notifySessionChanged()
     SessionService.notifyInstanceChanged()
+  }
+
+  private static persistActivation(committed: boolean): void {
+    if (SessionService.sessionPreferences === null) {
+      return
+    }
+    try {
+      SessionService.sessionPreferences.putSync('activeSessionCommitted', committed)
+      SessionService.sessionPreferences.flushSync()
+    } catch (err) {
+      console.error('save mailbox activation state failed')
+    }
   }
 
   private static notifyInstanceChanged(): void {

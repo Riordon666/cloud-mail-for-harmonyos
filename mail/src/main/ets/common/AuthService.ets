@@ -5,6 +5,7 @@ import { SessionService } from './SessionService'
 import Constants from './Constants'
 import { InstanceService } from './InstanceService'
 import { PlatformSessionService } from './PlatformSessionService'
+import { LoginInstanceService } from './LoginInstanceService'
 
 export class AuthResult {
   success: boolean
@@ -34,6 +35,7 @@ export class AuthService {
   static initialize(context: Context): void {
     SessionService.initialize(context)
     InstanceService.initialize(context)
+    LoginInstanceService.initialize(context)
   }
 
   static async login(email: string, password: string): Promise<AuthResult> {
@@ -107,35 +109,46 @@ export class AuthService {
 
   static logout(): void {
     const token: string = SessionService.getToken()
+    const apiBaseUrl: string = SessionService.getApiBaseUrl()
+    LoginInstanceService.cancelPending()
     SessionService.clearAllSessions()
     PlatformSessionService.clear()
     if (token !== '') {
-      AuthService.revokeServerSession(token)
+      AuthService.revokeServerSession(apiBaseUrl, token)
     }
   }
 
   static async refreshSession(): Promise<AuthResult> {
     const token: string = SessionService.getToken()
+    const instanceId: string = SessionService.getActiveInstanceId()
+    const revision: number = (AppStorage.get('sessionRevision') as number | undefined) ?? 0
     if (token === '') {
       return new AuthResult(false, '未登录')
     }
     try {
       const user: AuthUserInfo = await AuthApi.getCurrentUser()
+      if (instanceId !== SessionService.getActiveInstanceId() || token !== SessionService.getToken() ||
+        revision !== ((AppStorage.get('sessionRevision') as number | undefined) ?? 0)) {
+        return new AuthResult(false, '邮箱或登录账号已切换，已取消原请求')
+      }
       SessionService.saveSession(token, user.email, user.role, user.roleName, user.accountId)
       await InstanceService.ensurePlatformSession()
       return new AuthResult(true, '')
     } catch (err) {
       if (err instanceof ApiException && err.code === 401) {
-        SessionService.clearSession()
+        if (instanceId === SessionService.getActiveInstanceId() && token === SessionService.getToken() &&
+          revision === ((AppStorage.get('sessionRevision') as number | undefined) ?? 0)) {
+          SessionService.clearSession()
+        }
         return new AuthResult(false, '登录已过期，请重新登录')
       }
       return new AuthResult(true, '')
     }
   }
 
-  private static async revokeServerSession(token: string): Promise<void> {
+  private static async revokeServerSession(apiBaseUrl: string, token: string): Promise<void> {
     try {
-      await AuthApi.logout(token)
+      await AuthApi.logout(apiBaseUrl, token)
     } catch (err) {
       console.error('logout request failed')
     }

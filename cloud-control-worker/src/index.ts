@@ -1,7 +1,5 @@
 interface Env {
   DB: D1Database
-  HUAWEI_CLIENT_ID: string
-  HUAWEI_CLIENT_SECRET: string
   PLATFORM_JWT_SECRET: string
   ANCHOR_INSTANCE_API_BASE_URL: string
   SUPER_ADMIN_HUAWEI_IDS: string
@@ -93,6 +91,12 @@ interface PlatformBindingView {
   verifiedTime: string
 }
 
+interface BindingRemovalSnapshot {
+  email: string
+  bindingId: number
+  verifiedTime: string
+}
+
 interface PlatformAdminUserView {
   platformUserId: number
   huaweiUserId: string
@@ -117,22 +121,6 @@ interface CloudMailEnvelope {
   data?: InstanceUserPayload
 }
 
-interface HuaweiTokenPayload {
-  access_token?: string
-  error?: string
-}
-
-interface HuaweiTokenInfoPayload {
-  client_id?: string
-  open_id?: string
-  union_id?: string
-}
-
-interface HuaweiProfilePayload {
-  displayName?: string
-  headPictureURL?: string
-}
-
 interface AnchorHuaweiPayload {
   huaweiUserId?: string
   nickName?: string
@@ -143,6 +131,13 @@ interface AnchorHuaweiPayload {
 interface AnchorHuaweiEnvelope {
   code?: number
   data?: AnchorHuaweiPayload
+}
+
+interface AnchorLoginState {
+  status: 'BOUND' | 'UNBOUND'
+  token: string
+  email: string
+  bindToken: string
 }
 
 interface AnchorAdminBindingItem {
@@ -180,10 +175,6 @@ interface JsonObject {
   [key: string]: unknown
 }
 
-const HUAWEI_TOKEN_URL = 'https://oauth-login.cloud.huawei.com/oauth2/v3/token'
-const HUAWEI_TOKEN_INFO_URL =
-  'https://oauth-api.cloud.huawei.com/rest.php?nsp_fmt=JSON&nsp_svc=huawei.oauth2.user.getTokenInfo'
-const HUAWEI_PROFILE_URL = 'https://account.cloud.huawei.com/rest.php?nsp_svc=GOpen.User.getInfo'
 const PLATFORM_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 const ANCHOR_INSTANCE_ID = 'riordon-cloud-mail'
 
@@ -200,7 +191,7 @@ class HttpError extends Error {
 
 function jsonResponse(request: Request, env: Env, data: unknown, status = 200, code = 200,
   message = ''): Response {
-  const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' })
+  const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
   applyCorsHeaders(request, env, headers)
   return new Response(JSON.stringify({ code, message, data }), { status, headers })
 }
@@ -353,87 +344,38 @@ function requireSuperAdmin(user: PlatformUserRow): void {
   }
 }
 
-async function exchangeHuaweiIdentity(code: string, env: Env): Promise<HuaweiIdentity> {
-  if (code === '') {
-    throw new HttpError(400, 400, '未获取到华为账号授权码')
-  }
-  const tokenParams = new URLSearchParams()
-  tokenParams.append('grant_type', 'authorization_code')
-  tokenParams.append('client_id', env.HUAWEI_CLIENT_ID)
-  tokenParams.append('client_secret', env.HUAWEI_CLIENT_SECRET)
-  tokenParams.append('code', code)
-  tokenParams.append('supportAlg', 'PS256')
-  const tokenResponse = await fetch(HUAWEI_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: tokenParams.toString()
-  })
-  const tokenPayload = await tokenResponse.json() as HuaweiTokenPayload
-  const accessToken = textValue(tokenPayload.access_token)
-  if (!tokenResponse.ok || accessToken === '') {
-    throw new HttpError(401, 401, '华为账号授权已失效，请重新登录')
-  }
-
-  const infoParams = new URLSearchParams()
-  infoParams.append('access_token', accessToken)
-  infoParams.append('open_id', 'OPENID')
-  const infoResponse = await fetch(HUAWEI_TOKEN_INFO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: infoParams.toString()
-  })
-  const infoPayload = await infoResponse.json() as HuaweiTokenInfoPayload
-  const nspStatus = infoResponse.headers.get('NSP_STATUS')
-  if (!infoResponse.ok || (nspStatus !== null && nspStatus !== '0') ||
-    textValue(infoPayload.client_id) !== env.HUAWEI_CLIENT_ID) {
-    throw new HttpError(401, 401, '华为账号身份校验失败，请重试')
-  }
-  const openId = textValue(infoPayload.open_id)
-  const unionId = textValue(infoPayload.union_id)
-  if (openId === '') {
-    throw new HttpError(401, 401, '华为账号未返回有效身份标识')
-  }
-
-  let nickName = ''
-  let avatarUrl = ''
-  try {
-    const profileParams = new URLSearchParams()
-    profileParams.append('access_token', accessToken)
-    profileParams.append('getNickName', '1')
-    const profileResponse = await fetch(HUAWEI_PROFILE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: profileParams.toString()
-    })
-    const profileStatus = profileResponse.headers.get('NSP_STATUS')
-    if (profileResponse.ok && (profileStatus === null || profileStatus === '0')) {
-      const profile = await profileResponse.json() as HuaweiProfilePayload
-      nickName = textValue(profile.displayName)
-      avatarUrl = textValue(profile.headPictureURL)
-    }
-  } catch {
-    nickName = ''
-    avatarUrl = ''
-  }
-  return { huaweiUserId: unionId === '' ? openId : unionId, unionId, openId, nickName, avatarUrl }
-}
-
 function isSuperAdminIdentity(huaweiUserId: string, configured: string, alias = ''): boolean {
   return configured.split(',').map((value) => value.trim()).filter((value) => value !== '')
     .some((value) => value === huaweiUserId || (alias !== '' && value.toLowerCase() === alias.toLowerCase()))
 }
 
 async function upsertPlatformUser(identity: HuaweiIdentity, env: Env, superAdminAlias = ''): Promise<PlatformUserRow> {
+  const existing = await env.DB.prepare(
+    'SELECT platform_user_id, huawei_user_id, nick_name, avatar_url, platform_role, status ' +
+    'FROM platform_user WHERE huawei_user_id = ? LIMIT 1'
+  ).bind(identity.huaweiUserId).first<PlatformUserRow>()
+  if (existing !== null && existing.status !== 'ACTIVE') {
+    throw new HttpError(401, 401, '平台账号不可用')
+  }
+  // Only this login's server-verified anchor mailbox can grant email-based
+  // authority. A stored link is historical evidence, not proof it still exists.
   const platformRole = isSuperAdminIdentity(identity.huaweiUserId, env.SUPER_ADMIN_HUAWEI_IDS, superAdminAlias) ?
     'SUPER_ADMIN' : 'MEMBER'
-  await env.DB.prepare(
+  const statements = [env.DB.prepare(
     'INSERT INTO platform_user (huawei_user_id, union_id, open_id, nick_name, avatar_url, platform_role) ' +
     'VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(huawei_user_id) DO UPDATE SET ' +
-    'union_id = excluded.union_id, open_id = excluded.open_id, nick_name = excluded.nick_name, ' +
-    'avatar_url = excluded.avatar_url, platform_role = excluded.platform_role, update_time = CURRENT_TIMESTAMP'
+    'union_id = excluded.union_id, open_id = excluded.open_id, ' +
+    'nick_name = COALESCE(excluded.nick_name, platform_user.nick_name), ' +
+    'avatar_url = COALESCE(excluded.avatar_url, platform_user.avatar_url), ' +
+    'platform_role = excluded.platform_role, update_time = CURRENT_TIMESTAMP ' +
+    'WHERE platform_user.status = \'ACTIVE\''
   ).bind(identity.huaweiUserId, identity.unionId === '' ? null : identity.unionId, identity.openId,
     identity.nickName === '' ? null : identity.nickName, identity.avatarUrl === '' ? null : identity.avatarUrl,
-    platformRole).run()
+    platformRole)]
+  if (superAdminAlias === '' && existing !== null) {
+    statements.push(...removeOwnBindingStatements(env, existing, ANCHOR_INSTANCE_ID))
+  }
+  await env.DB.batch(statements)
   const user = await env.DB.prepare(
     'SELECT platform_user_id, huawei_user_id, nick_name, avatar_url, platform_role, status ' +
     'FROM platform_user WHERE huawei_user_id = ? LIMIT 1'
@@ -441,7 +383,134 @@ async function upsertPlatformUser(identity: HuaweiIdentity, env: Env, superAdmin
   if (user === null) {
     throw new HttpError(500, 500, '平台账号保存失败')
   }
+  if (user.status !== 'ACTIVE') {
+    throw new HttpError(401, 401, '平台账号不可用')
+  }
   return user
+}
+
+function jsonObject(value: unknown): JsonObject {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new HttpError(502, 502, '主服务返回的身份信息无效')
+  }
+  return value as JsonObject
+}
+
+function verifiedHuaweiIdentity(value: unknown): HuaweiIdentity {
+  const source = jsonObject(value)
+  const identity: HuaweiIdentity = {
+    huaweiUserId: textValue(source.huaweiUserId),
+    unionId: textValue(source.unionId),
+    openId: textValue(source.openId),
+    nickName: textValue(source.nickName),
+    avatarUrl: textValue(source.avatarUrl)
+  }
+  if (identity.openId === '' || identity.huaweiUserId === '' || identity.huaweiUserId.includes('…') ||
+    identity.huaweiUserId !== (identity.unionId || identity.openId)) {
+    throw new HttpError(502, 502, '主服务未返回完整的华为账号身份')
+  }
+  return identity
+}
+
+async function readAnchorIdentityResponse(response: Response): Promise<JsonObject> {
+  // Workerd does not implement redirect: 'error'. Fetch manually and reject
+  // redirects before reading identity data, without forwarding any credentials.
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel()
+    throw new HttpError(502, 502, '主服务身份接口发生重定向，请联系管理员检查服务地址')
+  }
+  // Identity envelopes are small. Bound both declared and streamed response sizes.
+  const maximumBytes = 65536
+  if (Number(response.headers.get('Content-Length') || '0') > maximumBytes || response.body === null) {
+    await response.body?.cancel()
+    throw new HttpError(502, 502, '主服务身份响应无效')
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let body = ''
+  let bytes = 0
+  try {
+    while (true) {
+      const part = await reader.read()
+      if (part.done) break
+      bytes += part.value.byteLength
+      if (bytes > maximumBytes) {
+        await reader.cancel()
+        throw new HttpError(502, 502, '主服务身份响应过大')
+      }
+      body += decoder.decode(part.value, { stream: true })
+    }
+    body += decoder.decode()
+  } finally {
+    reader.releaseLock()
+  }
+  let envelope: JsonObject
+  try {
+    envelope = jsonObject(JSON.parse(body))
+  } catch {
+    throw new HttpError(502, 502, '主服务尚不支持平台华为登录，请联系管理员更新服务')
+  }
+  if (!response.ok || envelope.code !== 200) {
+    const reportedStatus = Number(envelope.code)
+    if (reportedStatus === 401 || response.status === 401) {
+      throw new HttpError(401, 401, '华为账号授权已失效，请重新登录')
+    }
+    if (reportedStatus === 403 || response.status === 403) {
+      throw new HttpError(403, 403, '当前华为账号对应的主服务账号不可用')
+    }
+    if (reportedStatus === 503 || response.status === 503) {
+      throw new HttpError(503, 503, '主服务尚未配置好华为登录，请联系管理员')
+    }
+    throw new HttpError(502, 502, '主服务身份校验失败，请稍后重试')
+  }
+  return jsonObject(envelope.data)
+}
+
+async function resolveAnchorPlatformUser(identity: HuaweiIdentity, primaryEmail: string,
+  env: Env): Promise<PlatformUserRow> {
+  const verifiedEmail = primaryEmail.toLowerCase()
+  if (verifiedEmail !== '') {
+    // Historical clients stored a masked ID. A verified anchor mailbox binding,
+    // not a collision-prone masked ID alone, is required to upgrade that row.
+    const legacyRows = await env.DB.prepare(
+      'SELECT p.platform_user_id, p.huawei_user_id, p.nick_name, p.avatar_url, p.platform_role, p.status ' +
+      'FROM platform_user p INNER JOIN instance_binding b ON b.platform_user_id = p.platform_user_id ' +
+      'WHERE b.instance_id = ? AND lower(b.local_email) = ? LIMIT 2'
+    ).bind(ANCHOR_INSTANCE_ID, verifiedEmail).all<PlatformUserRow>()
+    if (legacyRows.results.length > 1) {
+      throw new HttpError(409, 409, '主邮箱存在冲突的绑定，请联系管理员')
+    }
+    const legacy = legacyRows.results[0]
+    if (legacy !== undefined) {
+      if (legacy.status !== 'ACTIVE') {
+        throw new HttpError(401, 401, '平台账号不可用')
+      }
+      if (legacy.huawei_user_id !== identity.huaweiUserId) {
+        const maskedId = identity.huaweiUserId.length <= 12 ? identity.huaweiUserId :
+          identity.huaweiUserId.slice(0, 6) + '…' + identity.huaweiUserId.slice(-6)
+        if (legacy.huawei_user_id !== maskedId && legacy.huawei_user_id !== 'anchor:' + verifiedEmail) {
+          throw new HttpError(409, 409, '主邮箱已绑定其他华为身份，请联系管理员')
+        }
+        const role = isSuperAdminIdentity(identity.huaweiUserId, env.SUPER_ADMIN_HUAWEI_IDS,
+          'anchor:' + verifiedEmail) ? 'SUPER_ADMIN' : 'MEMBER'
+        try {
+          // One atomic UPDATE preserves the platform user ID and every FK/binding;
+          // a canonical-ID collision aborts without merging unrelated accounts.
+          await env.DB.prepare(
+            'UPDATE platform_user SET huawei_user_id = ?, union_id = ?, open_id = ?, ' +
+            'nick_name = COALESCE(NULLIF(?, \'\'), nick_name), ' +
+            'avatar_url = COALESCE(NULLIF(?, \'\'), avatar_url), platform_role = ?, ' +
+            'update_time = CURRENT_TIMESTAMP WHERE platform_user_id = ? AND huawei_user_id = ? ' +
+            'AND status = \'ACTIVE\''
+          ).bind(identity.huaweiUserId, identity.unionId || null, identity.openId, identity.nickName,
+            identity.avatarUrl, role, legacy.platform_user_id, legacy.huawei_user_id).run()
+        } catch {
+          throw new HttpError(409, 409, '华为身份存在重复的绑定，请联系管理员')
+        }
+      }
+    }
+  }
+  return upsertPlatformUser(identity, env, verifiedEmail === '' ? '' : 'anchor:' + verifiedEmail)
 }
 
 function normalizeApiBaseUrl(value: string): URL {
@@ -542,12 +611,16 @@ function bindingUpsert(env: Env, user: PlatformUserRow, instance: MailInstanceRo
   const localRoleName = textValue(localUser.role?.name)
   return env.DB.prepare(
     'INSERT INTO instance_binding (platform_user_id, instance_id, local_user_key, local_email, ' +
-    'local_role_name, instance_role) VALUES (?, ?, ?, ?, ?, ?) ' +
+    'local_role_name, instance_role, verified_time) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
     'ON CONFLICT(platform_user_id, instance_id) DO UPDATE SET local_user_key = excluded.local_user_key, ' +
     'local_email = excluded.local_email, local_role_name = excluded.local_role_name, ' +
-    'instance_role = excluded.instance_role, status = \'ACTIVE\', verified_time = CURRENT_TIMESTAMP, ' +
+    'instance_role = excluded.instance_role, status = \'ACTIVE\', verified_time = ' +
+    'CASE WHEN julianday(excluded.verified_time) > julianday(instance_binding.verified_time) ' +
+    'THEN excluded.verified_time ELSE strftime(\'%Y-%m-%dT%H:%M:%fZ\', ' +
+    'julianday(instance_binding.verified_time) + 1.0 / 86400000) END, ' +
     'update_time = CURRENT_TIMESTAMP'
-  ).bind(user.platform_user_id, instance.instance_id, localUserKey, localEmail, localRoleName, instanceRole)
+  ).bind(user.platform_user_id, instance.instance_id, localUserKey, localEmail, localRoleName, instanceRole,
+    new Date().toISOString())
 }
 
 function auditInsert(env: Env, userId: number, instanceId: string | null, action: string,
@@ -616,13 +689,88 @@ async function writeAudit(env: Env, userId: number, instanceId: string | null, a
   await auditInsert(env, userId, instanceId, action, detail).run()
 }
 
+function removeOwnBindingStatements(env: Env, user: PlatformUserRow,
+  instanceId: string, expected?: BindingRemovalSnapshot): D1PreparedStatement[] {
+  const statements: D1PreparedStatement[] = []
+  const condition = 'platform_user_id = ? AND instance_id = ?' +
+    (expected === undefined ? '' : ' AND lower(local_email) = ? AND binding_id = ? AND verified_time = ?')
+  const values: (number | string)[] = [user.platform_user_id, instanceId]
+  if (expected !== undefined) values.push(expected.email, expected.bindingId, expected.verifiedTime)
+  if (instanceId === ANCHOR_INSTANCE_ID) {
+    // Do not let an imported display-only record resurrect the removed link.
+    statements.push(env.DB.prepare(
+      'DELETE FROM legacy_anchor_binding WHERE source_instance_id = ? AND lower(primary_email) IN ' +
+      '(SELECT lower(local_email) FROM instance_binding WHERE ' + condition + ')'
+    ).bind(instanceId, ...values))
+    const role = isSuperAdminIdentity(user.huawei_user_id, env.SUPER_ADMIN_HUAWEI_IDS) ? 'SUPER_ADMIN' : 'MEMBER'
+    // A delayed cleanup for an old mailbox must not downgrade a newly verified
+    // mailbox. An authoritative UNBOUND login (no snapshot) always revokes.
+    statements.push(env.DB.prepare(
+      'UPDATE platform_user SET platform_role = ?, update_time = CURRENT_TIMESTAMP WHERE platform_user_id = ?' +
+      (expected === undefined ? '' : ' AND EXISTS (SELECT 1 FROM instance_binding WHERE ' + condition + ')')
+    ).bind(role, user.platform_user_id, ...(expected === undefined ? [] : values)))
+  }
+  statements.push(env.DB.prepare(
+    'DELETE FROM instance_binding WHERE ' + condition
+  ).bind(...values))
+  return statements
+}
+
+async function handleDeleteOwnBinding(request: Request, env: Env, user: PlatformUserRow,
+  instanceId: string): Promise<Response> {
+  const params = new URL(request.url).searchParams
+  const email = textValue(params.get('email')).toLowerCase()
+  const bindingIdText = textValue(params.get('bindingId'))
+  const bindingId = Number(bindingIdText)
+  const verifiedTime = textValue(params.get('verifiedTime'))
+  if (email === '' || email.length > 320 || !/^[1-9]\d*$/.test(bindingIdText) ||
+    !Number.isSafeInteger(bindingId) || verifiedTime === '' || verifiedTime.length > 64) {
+    throw new HttpError(400, 400, '缺少待解除绑定的邮箱与绑定版本信息')
+  }
+  const snapshot = { email, bindingId, verifiedTime }
+  await env.DB.batch([
+    ...removeOwnBindingStatements(env, user, instanceId, snapshot),
+    auditInsert(env, user.platform_user_id, null, 'INSTANCE_BIND_REMOVE', JSON.stringify({ instanceId, ...snapshot }))
+  ])
+  const current = await env.DB.prepare(
+    'SELECT platform_role FROM platform_user WHERE platform_user_id = ?'
+  ).bind(user.platform_user_id).first<{ platform_role: string }>()
+  if (current === null) {
+    throw new HttpError(401, 401, '平台账号不可用')
+  }
+  return jsonResponse(request, env, { instanceId, platformRole: current.platform_role })
+}
+
 async function handleHuaweiLogin(request: Request, env: Env): Promise<Response> {
-  const body = await parseBody(request)
-  const identity = await exchangeHuaweiIdentity(textValue(body.authorizationCode), env)
-  const user = await upsertPlatformUser(identity, env)
-  const token = await issuePlatformToken(user, env.PLATFORM_JWT_SECRET)
-  await writeAudit(env, user.platform_user_id, null, 'HUAWEI_LOGIN', '')
-  return jsonResponse(request, env, {
+  // Keep the original endpoint compatible, with the same canonical identity and
+  // legacy migration policy as the new onboarding entry point.
+  return handleHuaweiAnchorLogin(request, env)
+}
+
+function configuredAnchor(env: Env): MailInstanceRow {
+  const anchorBase = normalizeApiBaseUrl(env.ANCHOR_INSTANCE_API_BASE_URL).toString().replace(/\/$/, '')
+  return {
+    instance_id: ANCHOR_INSTANCE_ID,
+    display_name: '云笺集主服务',
+    api_base_url: anchorBase,
+    origin_host: new URL(anchorBase).hostname,
+    status: 'ACTIVE'
+  }
+}
+
+async function persistAnchorSession(env: Env, user: PlatformUserRow, anchorInstance: MailInstanceRow,
+  localUser: InstanceUserPayload): Promise<void> {
+  await env.DB.prepare(
+    'INSERT INTO mail_instance (instance_id, display_name, api_base_url, origin_host, created_by) ' +
+    'VALUES (?, ?, ?, ?, ?) ON CONFLICT(instance_id) DO UPDATE SET api_base_url = excluded.api_base_url, ' +
+    'origin_host = excluded.origin_host, status = \'ACTIVE\', update_time = CURRENT_TIMESTAMP'
+  ).bind(ANCHOR_INSTANCE_ID, '云笺集主服务', anchorInstance.api_base_url, anchorInstance.origin_host,
+    user.platform_user_id).run()
+  await persistInstanceBinding(env, user, anchorInstance, localUser, 'ANCHOR_LOGIN', textValue(localUser.email))
+}
+
+function platformLoginView(user: PlatformUserRow, token: string): JsonObject {
+  return {
     token,
     user: {
       huaweiUserId: user.huawei_user_id,
@@ -630,7 +778,55 @@ async function handleHuaweiLogin(request: Request, env: Env): Promise<Response> 
       avatarUrl: user.avatar_url || '',
       platformRole: user.platform_role
     }
+  }
+}
+
+async function handleHuaweiAnchorLogin(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request)
+  const authorizationCode = textValue(body.authorizationCode)
+  if (authorizationCode === '' || authorizationCode.length > 8192) {
+    throw new HttpError(400, 400, '未获取到有效的华为账号授权码')
+  }
+  const anchorInstance = configuredAnchor(env)
+  // The client never chooses the identity broker URL. Credentials go only to the
+  // configured anchor; redirects are forbidden so they cannot escape that origin.
+  const response = await fetch(anchorInstance.api_base_url + '/oauth/huawei/platform-login', {
+    method: 'POST',
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ authorizationCode }),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000)
   })
+  const verified = await readAnchorIdentityResponse(response)
+  const identity = verifiedHuaweiIdentity(verified.identity)
+  const status = textValue(verified.status)
+  if (status !== 'BOUND' && status !== 'UNBOUND') {
+    throw new HttpError(502, 502, '主服务返回的绑定状态无效')
+  }
+  const anchor: AnchorLoginState = {
+    status,
+    token: status === 'BOUND' ? textValue(verified.token) : '',
+    email: status === 'BOUND' ? textValue(verified.email) : '',
+    bindToken: status === 'UNBOUND' ? textValue(verified.bindToken) : ''
+  }
+  if ((status === 'BOUND' && (anchor.token === '' || anchor.email === '')) ||
+    (status === 'UNBOUND' && anchor.bindToken === '')) {
+    throw new HttpError(502, 502, '主服务返回的登录凭据无效')
+  }
+  let localUser: InstanceUserPayload | null = null
+  if (status === 'BOUND') {
+    localUser = await verifyInstanceUser(anchorInstance, anchor.token)
+    if (textValue(localUser.email).toLowerCase() !== anchor.email.toLowerCase()) {
+      throw new HttpError(401, 401, '主邮箱会话与华为绑定不匹配')
+    }
+  }
+  const user = await resolveAnchorPlatformUser(identity, anchor.email, env)
+  if (localUser !== null) {
+    await persistAnchorSession(env, user, anchorInstance, localUser)
+  }
+  const token = await issuePlatformToken(user, env.PLATFORM_JWT_SECRET)
+  await writeAudit(env, user.platform_user_id, null, 'HUAWEI_LOGIN', '')
+  return jsonResponse(request, env, { ...platformLoginView(user, token), anchor })
 }
 
 async function handleAnchorLogin(request: Request, env: Env): Promise<Response> {
@@ -639,52 +835,34 @@ async function handleAnchorLogin(request: Request, env: Env): Promise<Response> 
   if (instanceToken === '') {
     throw new HttpError(400, 400, '缺少主实例登录令牌')
   }
-  const anchorBase = normalizeApiBaseUrl(env.ANCHOR_INSTANCE_API_BASE_URL).toString().replace(/\/$/, '')
-  const response = await fetch(anchorBase + '/huawei/me', {
+  const anchorInstance = configuredAnchor(env)
+  const response = await fetch(anchorInstance.api_base_url + '/huawei/identity', {
     headers: { 'Accept': 'application/json', 'Authorization': instanceToken },
+    redirect: 'manual',
     signal: AbortSignal.timeout(15000)
   })
-  const envelope = await response.json() as AnchorHuaweiEnvelope
-  if (!response.ok || envelope.code !== 200 || envelope.data === undefined) {
-    throw new HttpError(401, 401, '无法通过主实例验证华为账号')
-  }
-  const primaryEmail = textValue(envelope.data.primaryEmail).toLowerCase()
+  const verified = await readAnchorIdentityResponse(response)
+  const identity = verifiedHuaweiIdentity(verified.identity)
+  const primaryEmail = textValue(verified.primaryEmail)
   if (primaryEmail === '') {
     throw new HttpError(401, 401, '主实例未返回绑定邮箱')
   }
-  const identity: HuaweiIdentity = {
-    huaweiUserId: textValue(envelope.data.huaweiUserId) || 'anchor:' + primaryEmail,
-    unionId: '',
-    openId: textValue(envelope.data.huaweiUserId) || 'anchor:' + primaryEmail,
-    nickName: textValue(envelope.data.nickName),
-    avatarUrl: textValue(envelope.data.avatarUrl)
-  }
-  const user = await upsertPlatformUser(identity, env, 'anchor:' + primaryEmail)
-  const anchorUrl = new URL(anchorBase)
-  await env.DB.prepare(
-    'INSERT INTO mail_instance (instance_id, display_name, api_base_url, origin_host, created_by) ' +
-    'VALUES (?, ?, ?, ?, ?) ON CONFLICT(instance_id) DO UPDATE SET api_base_url = excluded.api_base_url, ' +
-    'origin_host = excluded.origin_host, status = \'ACTIVE\', update_time = CURRENT_TIMESTAMP'
-  ).bind(ANCHOR_INSTANCE_ID, '云笺集主服务', anchorBase, anchorUrl.hostname, user.platform_user_id).run()
-  const anchorInstance: MailInstanceRow = {
-    instance_id: ANCHOR_INSTANCE_ID,
-    display_name: '云笺集主服务',
-    api_base_url: anchorBase,
-    origin_host: anchorUrl.hostname,
-    status: 'ACTIVE'
-  }
   const localUser = await verifyInstanceUser(anchorInstance, instanceToken)
-  await persistInstanceBinding(env, user, anchorInstance, localUser, 'ANCHOR_LOGIN', primaryEmail)
+  if (textValue(localUser.email).toLowerCase() !== primaryEmail.toLowerCase()) {
+    throw new HttpError(401, 401, '主邮箱会话与华为绑定不匹配')
+  }
+  const user = await resolveAnchorPlatformUser(identity, primaryEmail, env)
+  await persistAnchorSession(env, user, anchorInstance, localUser)
   const token = await issuePlatformToken(user, env.PLATFORM_JWT_SECRET)
-  return jsonResponse(request, env, {
-    token,
-    user: {
-      huaweiUserId: user.huawei_user_id,
-      nickName: user.nick_name || '',
-      avatarUrl: user.avatar_url || '',
-      platformRole: user.platform_role
-    }
-  })
+  return jsonResponse(request, env, platformLoginView(user, token))
+}
+
+async function handlePublicInstances(request: Request, env: Env): Promise<Response> {
+  const result = await env.DB.prepare(
+    'SELECT instance_id, display_name, api_base_url, origin_host, status ' +
+    'FROM mail_instance WHERE status = \'ACTIVE\' ORDER BY create_time ASC, instance_id ASC'
+  ).all<MailInstanceRow>()
+  return jsonResponse(request, env, result.results)
 }
 
 async function handleListInstances(request: Request, env: Env, user: PlatformUserRow): Promise<Response> {
@@ -1076,6 +1254,12 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === 'POST' && url.pathname === '/api/platform/auth/huawei') {
     return handleHuaweiLogin(request, env)
   }
+  if (request.method === 'POST' && url.pathname === '/api/platform/auth/huawei-anchor') {
+    return handleHuaweiAnchorLogin(request, env)
+  }
+  if (request.method === 'GET' && url.pathname === '/api/platform/public/instances') {
+    return handlePublicInstances(request, env)
+  }
   if (request.method === 'POST' && url.pathname === '/api/platform/auth/anchor') {
     return handleAnchorLogin(request, env)
   }
@@ -1108,6 +1292,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   const bindingMatch = url.pathname.match(/^\/api\/platform\/instances\/([^/]+)\/verify-binding$/)
   if (request.method === 'POST' && bindingMatch !== null) {
     return handleVerifyBinding(request, env, user, decodeURIComponent(bindingMatch[1]))
+  }
+  const ownBindingMatch = url.pathname.match(/^\/api\/platform\/bindings\/([^/]+)$/)
+  if (request.method === 'DELETE' && ownBindingMatch !== null) {
+    return handleDeleteOwnBinding(request, env, user, decodeURIComponent(ownBindingMatch[1]))
   }
   throw new HttpError(404, 404, '接口不存在')
 }

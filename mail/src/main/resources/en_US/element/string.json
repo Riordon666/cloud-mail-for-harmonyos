@@ -115,6 +115,222 @@
     {
       "name": "common_cancel",
       "value": "Cancel"
+    },
+    {
+      "name": "login_instance_submitting",
+      "value": "Verifying the selected mail service"
+    },
+    {
+      "name": "login_selected_instance",
+      "value": "Selected mail service"
+    },
+    {
+      "name": "login_switch_instance",
+      "value": "Switch"
+    },
+    {
+      "name": "login_instances_loading",
+      "value": "Loading mail services…"
+    },
+    {
+      "name": "login_instances_retry",
+      "value": "Retry loading services"
+    },
+    {
+      "name": "login_multi_instance_description",
+      "value": "One HUAWEI ID, multiple mail services"
+    },
+    {
+      "name": "login_registration_loading",
+      "value": "Loading registration rules…"
+    },
+    {
+      "name": "login_registration_retry",
+      "value": "Retry registration rules"
+    },
+    {
+      "name": "login_instance_password_notice",
+      "value": "Enter the full email address and password for the selected service. Your password is used only for verification and is not stored by Yunjianji."
+    },
+    {
+      "name": "login_instance_web_registration",
+      "value": "Register on the selected service's website first, including any verification or invitation requirements. Then return to Yunjianji and bind that email using its password."
+    },
+    {
+      "name": "login_instance_open_registration",
+      "value": "Register on this service"
+    },
+    {
+      "name": "login_instance_registration_done",
+      "value": "Registration complete, bind email"
+    },
+    {
+      "name": "login_email_prefix",
+      "value": "Mailbox name (without @domain)"
+    },
+    {
+      "name": "login_full_email",
+      "value": "Full email address"
+    },
+    {
+      "name": "login_email_domain",
+      "value": "Email domain"
+    },
+    {
+      "name": "login_instance_login_failed",
+      "value": "Sign-in failed. Please try again."
+    },
+    {
+      "name": "login_huawei_identity_changed",
+      "value": "Your HUAWEI ID changed. Please sign in again."
+    },
+    {
+      "name": "login_instance_bind_failed",
+      "value": "Binding failed. Check the selected service and your credentials."
+    },
+    {
+      "name": "login_instance_register_failed",
+      "value": "Registration failed. Check the details and try again."
+    },
+    {
+      "name": "login_email_prefix_invalid",
+      "value": "Enter a mailbox name without @domain."
+    },
+    {
+      "name": "login_email_invalid",
+      "value": "Enter a valid full email address."
+    },
+    {
+      "name": "login_instances_empty",
+      "value": "No mail services are available. Please try again later."
+    },
+    {
+      "name": "login_instance_unavailable",
+      "value": "The selected service is unavailable. Choose another service."
+    },
+    {
+      "name": "login_instances_failed",
+      "value": "Could not load mail services. Retry to continue; no default service will be bound automatically."
+    },
+    {
+      "name": "login_registration_failed",
+      "value": "Could not load registration rules. Retry or bind an existing email."
+    },
+    {
+      "name": "login_instance_open_failed",
+      "value": "Unable to open the selected service's website."
+    },
+    {
+      "name": "login_instance_picker_title",
+      "value": "Choose mail service"
+    },
+    {
+      "name": "login_instance_picker_description",
+      "value": "Choose a service, then sign in with HUAWEI ID. Each service uses its own email credentials; registration on the primary service is not required."
+    },
+    {
+      "name": "platform_reauth_title",
+      "value": "HUAWEI ID verification required"
+    },
+    {
+      "name": "platform_reauth_description",
+      "value": "Restore service management without signing out of your mailboxes."
+    },
+    {
+      "name": "platform_reauth_action",
+      "value": "Verify HUAWEI ID"
+    },
+    {
+      "name": "platform_reauth_busy",
+      "value": "Verifying HUAWEI ID"
+    },
+    {
+      "name": "platform_reauth_success",
+      "value": "HUAWEI ID verified"
+    },
+    {
+      "name": "platform_reauth_failed",
+      "value": "HUAWEI ID verification failed. Please try again."
+    },
+    {
+      "name": "instance_saved_services",
+      "value": "Services saved on this device"
+    },
+    {
+      "name": "instance_needs_login",
+      "value": "Sign-in required"
+    },
+    {
+      "name": "instance_unavailable",
+      "value": "Service unavailable"
+    },
+    {
+      "name": "instance_sign_in",
+      "value": "Sign in"
+    },
+    {
+      "name": "instance_current",
+      "value": "Current"
+    },
+    {
+      "name": "instance_switch_action",
+      "value": "Switch"
+    },
+    {
+      "name": "profile_current_service",
+      "value": "Current service"
+    },
+    {
+      "name": "profile_current_mailbox",
+      "value": "Current mailbox"
+    },
+    {
+      "name": "profile_password_scope",
+      "value": "Change the password for this service only"
+    },
+    {
+      "name": "profile_delete_scope",
+      "value": "Delete only this service's mailbox and its binding. Other mailboxes are unaffected. Data removal follows this service's policy."
+    },
+    {
+      "name": "profile_delete_target_confirm",
+      "value": "Delete mailbox %2$s on %1$s and remove its binding? This cannot be undone in the app. Other mailboxes are unaffected."
+    },
+    {
+      "name": "profile_deleted",
+      "value": "The selected mailbox was deleted. Other mailboxes are unaffected."
+    },
+    {
+      "name": "profile_deleted_pending",
+      "value": "Mailbox deleted. Binding cleanup is pending; retry in Account Center."
+    },
+    {
+      "name": "profile_unavailable",
+      "value": "The current mailbox is unavailable."
+    },
+    {
+      "name": "binding_cleanup_busy",
+      "value": "Syncing mailbox bindings"
+    },
+    {
+      "name": "binding_cleanup_pending",
+      "value": "Mailbox deleted; binding cleanup pending"
+    },
+    {
+      "name": "binding_cleanup_description",
+      "value": "Tap to retry binding cleanup. Mailbox deletion will not be repeated."
+    },
+    {
+      "name": "binding_cleanup_complete",
+      "value": "Mailbox bindings synced"
+    },
+    {
+      "name": "binding_cleanup_retry_failed",
+      "value": "Binding cleanup is pending. Check your connection or verify your HUAWEI ID again."
+    },
+    {
+      "name": "account_huawei_user",
+      "value": "HUAWEI ID user"
     }
   ]
 }

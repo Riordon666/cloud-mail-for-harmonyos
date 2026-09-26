@@ -9,7 +9,8 @@
     "db:migrate:local": "wrangler d1 migrations apply yunjianji-platform --local",
     "db:migrate:remote": "wrangler d1 migrations apply yunjianji-platform --remote",
     "typecheck": "tsc --noEmit",
-    "test:logic": "node --test tests/import-policy.test.ts tests/instance-lifecycle.test.ts"
+    "test:logic": "node --test tests/import-policy.test.ts tests/instance-lifecycle.test.ts tests/login-onboarding.test.ts",
+    "test:runtime": "node --test tests/login-worker-runtime.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
